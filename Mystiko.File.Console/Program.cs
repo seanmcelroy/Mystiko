@@ -2,7 +2,7 @@
 {
     using System.IO;
 
-    using Mystiko.IO;
+    using IO;
 
     using Newtonsoft.Json;
 
@@ -103,7 +103,6 @@
                 System.Console.WriteLine(options.GetUsage());
                 if (options.Pause)
                     System.Console.ReadLine();
-                return;
             }
         }
     }

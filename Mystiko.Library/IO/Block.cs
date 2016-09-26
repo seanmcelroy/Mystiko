@@ -18,28 +18,43 @@ namespace Mystiko.IO
         public byte[] FullHash { get; private set; }
 
         /// <summary>
+        /// The last 32 bytes of the encrypted block, used to obscure the unlock key
+        /// </summary>
+        [NotNull]
+        public byte[] Last32Bytes { get; private set; }
+
+        /// <summary>
         /// The sequence ordering of the block
         /// </summary>
         public int Ordering { get; set; }
 
-        public Block([CanBeNull] string path, [NotNull] byte[] hash)
+        public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last32bytes)
         {
+            if (hash == null)
+                throw new ArgumentNullException(nameof(hash));
+            if (last32bytes == null)
+                throw new ArgumentNullException(nameof(last32bytes));
+
             this.Path = path;
             this.FullHash = hash;
+            this.Last32Bytes = last32bytes;
         }
 
         [NotNull]
         public static Block CreateViaTemp(
             [NotNull] HashAlgorithm hasher,
             [NotNull] byte[] encryptedChunk,
-            UInt32 ordering)
+            uint ordering)
         {
             if (encryptedChunk == null)
                 throw new ArgumentNullException(nameof(encryptedChunk));
             if (encryptedChunk.Length == 0)
                 throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
 
-            var block = new Block(System.IO.Path.GetTempFileName(), hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length));
+            var last32Bytes = new byte[32];
+            Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+
+            var block = new Block(System.IO.Path.GetTempFileName(), hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length), last32Bytes);
 
             using (var fs = new FileStream(block.Path, FileMode.Open, FileAccess.Write, FileShare.None))
             using (var bw = new BinaryWriter(fs))
@@ -59,7 +74,6 @@ namespace Mystiko.IO
             [NotNull] string path,
             [NotNull] string baseFileName,
             bool overwrite,
-            uint ordering,
             bool verbose = false,
             bool verify = false)
         {
@@ -79,7 +93,10 @@ namespace Mystiko.IO
                 File.Delete(blockPath);
             }
 
-            var block = new Block(blockPath, encryptedChunkHash);
+            var last32Bytes = new byte[32];
+            Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+
+            var block = new Block(blockPath, encryptedChunkHash, last32Bytes);
             using (var fs = new FileStream(block.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
             using (var bw = new BinaryWriter(fs))
             {

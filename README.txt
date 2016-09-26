@@ -62,7 +62,28 @@ of all encrypted parts.
 
 ==== Known issues / coming improvmeents ====
 
-It is possible to discern when any block is associated with the same manifest
-file, which could be incriminating depending on the content and how oppresive
-the governing regime of the user may be.
+Issue: It is possible to discern when any block is associated with the same
+manifest file by comparing the hash blocks within the manifest, which could be
+incriminating depending on the content and how oppresive the governing regime
+of the user may be.
 
+Response: This will soon be resolved by a coming feature that will XOR the
+hash blocks in the manifest file with the last 32 bytes of all other encrypted
+pieces.  This means that it requires all pieces plus the manifest file to
+verify the association of a block to a manifest file.
+
+
+Issue: It is possible to discern the last block of a file since it is a smaller
+size than the other uniform 10 MB blocks for files over 10 MB.
+
+Response: This will soon be resolved by a coming feature to randomize the size
+of blocks when MPM creates a package.  This also has the additional benefit of
+changing the total block count and hash values for each MPM parsing of any
+target file.
+
+
+Issue: It is possible to discern, by default operation, the name of a file that
+blocks represent.
+
+Response: This will soon be resolved by removing the base file name from
+generated blocks.

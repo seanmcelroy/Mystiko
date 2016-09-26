@@ -54,7 +54,7 @@ namespace Mystiko.IO
                 br.Close();
             }
 
-            return ChunkFile(fileBytes, file, (ha, ba, ordering) => Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, ordering, verbose, verify), verbose, verify);
+            return ChunkFile(fileBytes, file, (ha, ba, ordering) => Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify), verbose, verify);
         }
 
         [NotNull]
@@ -68,22 +68,23 @@ namespace Mystiko.IO
                 throw new ArgumentNullException(nameof(blockCreator));
 
             var length = (int)Math.Ceiling((decimal)fileBytes.Length / Chunk.CHUNK_SIZE_BYTES);
-            var chunkHash32s = new byte[length][];
+            //var chunkLengths = new Dictionary<int, uint>();
             var source = new List<Block>();
             var encKey = new byte[32];
+
             using (var sha = new SHA512Managed())
             {
                 if (verbose)
                     Console.Write("Hashing chunks");
                 for (uint index = 0; index < length; ++index)
                 {
-                    var num = index == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
+                    var chunkLength = index == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
                     var buffer = new byte[Chunk.CHUNK_SIZE_BYTES];
-                    Array.Copy(fileBytes, Chunk.CHUNK_SIZE_BYTES * index, buffer, 0, num);
-                    chunkHash32s[(int)index] = sha.ComputeHash(buffer, 0, Chunk.CHUNK_SIZE_BYTES).Take(32).ToArray();
+                    Array.Copy(fileBytes, Chunk.CHUNK_SIZE_BYTES * index, buffer, 0, chunkLength);
+                    var chunkHash = sha.ComputeHash(buffer, 0, Chunk.CHUNK_SIZE_BYTES).Take(32).ToArray();
                     if (verbose)
                         Console.Write(".");
-                    encKey = ExclusiveOR(encKey, chunkHash32s[(int)index]);
+                    encKey = ExclusiveOR(encKey, chunkHash);
                 }
 
                 if (verbose)
@@ -193,7 +194,12 @@ namespace Mystiko.IO
                         var hash = sha.ComputeHash(fs);
                         if (verbose)
                             Console.WriteLine($"Hashed block for manifest matching: {fileBlock.Name} ({fileBlock.Length:N0} bytes) -> {ByteArrayToString(hash)}");
-                        dictionary.Add(fileBlock, new Block(fileBlock.FullName, hash));
+
+                        fs.Seek(-32, SeekOrigin.End);
+                        var last32Bytes = new byte[32];
+                        fs.Read(last32Bytes, 0, 32);
+
+                        dictionary.Add(fileBlock, new Block(fileBlock.FullName, hash, last32Bytes));
                         fs.Close();
                     }
             }

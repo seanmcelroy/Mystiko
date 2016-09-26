@@ -10,7 +10,7 @@ namespace Mystiko.IO
 
     public class FileManifest
     {
-        public uint Version { get; set; } = IO.FileUtility.FILE_PACKAGING_PROTOCOL_VERSION;
+        public uint Version { get; set; } = FileUtility.FILE_PACKAGING_PROTOCOL_VERSION;
 
         [Newtonsoft.Json.JsonIgnore]
         public IEnumerable<Block> Blocks
@@ -18,7 +18,7 @@ namespace Mystiko.IO
             set
             {
                 if (value != null)
-                    this.BlockHashes = value.Select(b => IO.FileUtility.ByteArrayToString(b.FullHash)).ToArray();
+                    this.BlockHashes = value.Select(b => FileUtility.ByteArrayToString(b.FullHash)).ToArray();
             }
         }
 
@@ -47,11 +47,11 @@ namespace Mystiko.IO
         {
             get
             {
-                return IO.FileUtility.ByteArrayToString(this.UnlockBytes);
+                return FileUtility.ByteArrayToString(this.UnlockBytes);
             }
             set
             {
-                this.UnlockBytes = IO.FileUtility.StringToByteArray(value);
+                this.UnlockBytes = FileUtility.StringToByteArray(value);
             }
         }
 
