@@ -59,6 +59,7 @@
                 System.Console.WriteLine("Encryption complete.");
                 if (options.Pause)
                     System.Console.ReadLine();
+                return;
             }
 
             if (!string.IsNullOrEmpty(options.DecryptFile))
