@@ -3,6 +3,7 @@
 namespace Mystiko.IO
 {
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
 
@@ -10,6 +11,7 @@ namespace Mystiko.IO
 
     public class FileManifest
     {
+        [UsedImplicitly]
         public uint Version { get; set; } = FileUtility.FILE_PACKAGING_PROTOCOL_VERSION;
 
         [Newtonsoft.Json.JsonIgnore]
@@ -18,13 +20,17 @@ namespace Mystiko.IO
             set
             {
                 if (value != null)
-                    this.BlockHashes = value.Select(b => FileUtility.ByteArrayToString(b.FullHash)).ToArray();
+                    this.BlockHashes = value.Select(b =>
+                    {
+                        Debug.Assert(b != null, "b != null");
+                        return FileUtility.ByteArrayToString(b.FullHash);
+                    }).ToArray();
             }
         }
 
-        public string[] BlockHashes { get; set; }
+        public string[] BlockHashes { get; [UsedImplicitly] set; }
 
-        public string Name { get; set; }
+        public string Name { get; [UsedImplicitly] set; }
 
         [Newtonsoft.Json.JsonIgnore]
         public FileInfo File
@@ -58,6 +64,7 @@ namespace Mystiko.IO
         [Newtonsoft.Json.JsonIgnore]
         public DateTime PackedUtc { get; set; } = DateTime.UtcNow;
 
+        [UsedImplicitly]
         public long? PackedDateEpoch
         {
             get
@@ -74,6 +81,7 @@ namespace Mystiko.IO
         [Newtonsoft.Json.JsonIgnore]
         public DateTime? CreatedUtc { get; set; }
 
+        [UsedImplicitly]
         public long? CreatedDateEpoch
         {
             get
@@ -87,16 +95,6 @@ namespace Mystiko.IO
                 if (value != null)
                     this.CreatedUtc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(value.Value);
             }
-        }
-
-        public string ToJson([NotNull] FileInfo fileInfo)
-        {
-            if (fileInfo == null)
-                throw new ArgumentNullException(nameof(fileInfo));
-            if (!fileInfo.Exists)
-                throw new FileNotFoundException("File not found when generating manifest.", fileInfo.FullName);
-
-            return Newtonsoft.Json.JsonConvert.SerializeObject(this);
         }
     }
 }

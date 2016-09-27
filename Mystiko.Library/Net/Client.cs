@@ -19,7 +19,7 @@ namespace Mystiko.Net
         private Task _receiveTask;
 
         private readonly byte[] _rawInputBuffer = new byte[BufferSize];
-        private readonly StringBuilder builder = new StringBuilder();
+        private readonly StringBuilder _builder = new StringBuilder();
 
         internal Client(TcpClient client, CancellationToken serverCancellationToken)
         {
@@ -36,10 +36,10 @@ namespace Mystiko.Net
                     var bytesRead = await stream.ReadAsync(this._rawInputBuffer, 0, 32767, serverCancellationToken);
 
                     // There might be more data, so store the data received so far.
-                    this.builder.Append(Encoding.UTF8.GetString(this._rawInputBuffer, 0, bytesRead));
+                    this._builder.Append(Encoding.UTF8.GetString(this._rawInputBuffer, 0, bytesRead));
 
                     // Not all data received OR no more but not yet ending with the delimiter. Get more.
-                    var content = this.builder.ToString();
+                    var content = this._builder.ToString();
                     if (bytesRead == BufferSize || !content.EndsWith("\r\n", StringComparison.Ordinal))
                     {
                         // Read some more.

@@ -3,6 +3,7 @@ namespace Mystiko.IO
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Security.Cryptography;
@@ -12,32 +13,32 @@ namespace Mystiko.IO
     public class Block
     {
         [CanBeNull]
-        public string Path { get; private set; }
+        public string Path { get; }
 
         [NotNull]
-        public byte[] FullHash { get; private set; }
+        public byte[] FullHash { get; }
 
         /// <summary>
         /// The last 32 bytes of the encrypted block, used to obscure the unlock key
         /// </summary>
         [NotNull]
-        public byte[] Last32Bytes { get; private set; }
+        private byte[] Last32Bytes { get; set; }
 
         /// <summary>
         /// The sequence ordering of the block
         /// </summary>
         public int Ordering { get; set; }
 
-        public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last32bytes)
+        public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last32Bytes)
         {
             if (hash == null)
                 throw new ArgumentNullException(nameof(hash));
-            if (last32bytes == null)
-                throw new ArgumentNullException(nameof(last32bytes));
+            if (last32Bytes == null)
+                throw new ArgumentNullException(nameof(last32Bytes));
 
             this.Path = path;
             this.FullHash = hash;
-            this.Last32Bytes = last32bytes;
+            this.Last32Bytes = last32Bytes;
         }
 
         [NotNull]
@@ -54,7 +55,9 @@ namespace Mystiko.IO
             var last32Bytes = new byte[32];
             Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
 
-            var block = new Block(System.IO.Path.GetTempFileName(), hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length), last32Bytes);
+            var encryptedChunkHash = hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length);
+            Debug.Assert(encryptedChunkHash != null, "encryptedChunkHash != null");
+            var block = new Block(System.IO.Path.GetTempFileName(), encryptedChunkHash, last32Bytes);
 
             using (var fs = new FileStream(block.Path, FileMode.Open, FileAccess.Write, FileShare.None))
             using (var bw = new BinaryWriter(fs))
@@ -85,6 +88,8 @@ namespace Mystiko.IO
                 throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
 
             var encryptedChunkHash = hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length);
+            Debug.Assert(encryptedChunkHash != null, "encryptedChunkHash != null");
+
             var blockPath = System.IO.Path.Combine(path, $"{baseFileName}.{FileUtility.ByteArrayToString(encryptedChunkHash).Substring(0, 8)}");
             if (File.Exists(blockPath))
             {
@@ -97,6 +102,8 @@ namespace Mystiko.IO
             Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
 
             var block = new Block(blockPath, encryptedChunkHash, last32Bytes);
+            Debug.Assert(block.Path != null, "block.Path != null");
+
             using (var fs = new FileStream(block.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
             using (var bw = new BinaryWriter(fs))
             {
@@ -134,7 +141,16 @@ namespace Mystiko.IO
             if (allBlocks == null)
                 throw new ArgumentNullException(nameof(allBlocks));
 
-            return allBlocks.Aggregate(encKey, (current, block) => FileUtility.ExclusiveOR(current, block.FullHash.Take(encKey.Length).ToArray()));
+            var result = allBlocks.Aggregate(encKey, (current, block) =>
+            {
+                Debug.Assert(current != null, "current != null");
+                Debug.Assert(block != null, "block != null");
+                Debug.Assert(block.FullHash != null, "block.FullHash != null");
+                return FileUtility.ExclusiveOr(current, block.FullHash.Take(encKey.Length).ToArray());
+            });
+
+            Debug.Assert(result != null, "result != null");
+            return result;
         }
     }
 }

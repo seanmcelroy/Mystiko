@@ -1,5 +1,7 @@
 ﻿namespace Mystiko.File.Console
 {
+    using System.Diagnostics;
+
     using CommandLine;
     using CommandLine.Text;
 
@@ -33,6 +35,7 @@
         public string GetUsage()
         {
             var helpText = HelpText.AutoBuild(this, current => HelpText.DefaultParsingErrorsHandler(this, current));
+            Debug.Assert(helpText != null, "helpText != null");
             helpText.Copyright = new CopyrightInfo("Sean McElroy", 2016);
             return helpText;
         }

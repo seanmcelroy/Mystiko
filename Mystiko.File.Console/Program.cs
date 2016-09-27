@@ -34,6 +34,14 @@
                 }
 
                 var encryptFile = new FileInfo(options.EncryptFile);
+                if (encryptFile.Directory == null || string.IsNullOrWhiteSpace(encryptFile.DirectoryName))
+                {
+                    System.Console.WriteLine("Unable to locate parent directory of file: {0}", options.EncryptFile);
+                    if (options.Pause)
+                        System.Console.ReadLine();
+                    return;
+                }
+
                 var chunkResult = FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, options.Force, options.Verbose, options.Verify, options.Size);
                 var manifestFile = new FileInfo(Path.Combine(encryptFile.Directory.FullName, encryptFile.Name + ".mystiko"));
 

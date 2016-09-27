@@ -22,15 +22,10 @@ namespace Mystiko.IO
             if (!file.Exists)
                 throw new FileNotFoundException("File does not exist", file.FullName);
 
-            byte[] fileBytes;
             using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-            using (var br = new BinaryReader(fs))
             {
-                fileBytes = br.ReadBytes((int)fs.Length);
-                br.Close();
+                return ChunkFile(fs, file, Block.CreateViaTemp);
             }
-
-            return ChunkFile(fileBytes, file, Block.CreateViaTemp);
         }
 
         [NotNull]
@@ -47,22 +42,24 @@ namespace Mystiko.IO
             if (string.IsNullOrWhiteSpace(outputPath))
                 throw new ArgumentNullException(nameof(outputPath));
 
-            byte[] fileBytes;
             using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-            using (var br = new BinaryReader(fs))
             {
-                fileBytes = br.ReadBytes((int)fs.Length);
-                br.Close();
+                return ChunkFile(fs, file, (ha, ba, ordering) =>
+                {
+                    Debug.Assert(ha != null, "ha != null");
+                    Debug.Assert(ba != null, "ba != null");
+                    return Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify);
+                }, verbose, chunkSize);
             }
-
-            return ChunkFile(fileBytes, file, (ha, ba, ordering) => Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify), verbose, verify, chunkSize);
         }
 
         [NotNull]
-        private static Tuple<FileManifest, IEnumerable<Block>> ChunkFile([NotNull] byte[] fileBytes, [NotNull] FileInfo fileInfo, [NotNull] Func<HashAlgorithm, byte[], uint, Block> blockCreator, bool verbose = false, bool verify = false, int? chunkSize = null)
+        private static Tuple<FileManifest, IEnumerable<Block>> ChunkFile([NotNull] Stream fileStream, [NotNull] FileInfo fileInfo, [NotNull] Func<HashAlgorithm, byte[], uint, Block> blockCreator, bool verbose = false, int? chunkSize = null)
         {
-            if (fileBytes == null)
-                throw new ArgumentNullException(nameof(fileBytes));
+            if (fileStream == null)
+                throw new ArgumentNullException(nameof(fileStream));
+            if (!fileStream.CanRead)
+                throw new InvalidOperationException("File stream does not support reads in its current state");
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
             if (blockCreator == null)
@@ -85,10 +82,10 @@ namespace Mystiko.IO
                 {
                     //var chunkLength = i == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
                     var chunkLength = chunkSize ?? random.Next(1024 * 1024, 1024 * 1024 * 10);
-                    if (fileBytes.Length - chunkElapsed < chunkLength)
+                    if (fileStream.Length - chunkElapsed < chunkLength)
                     {
                         // Last chunk
-                        chunkLength = fileBytes.Length - chunkElapsed;
+                        chunkLength = (int)(fileStream.Length - chunkElapsed);
                     }
                     else
                     {
@@ -97,19 +94,21 @@ namespace Mystiko.IO
                     }
                     
                     var chunkBuffer = new byte[chunkLength];
-                    Array.Copy(fileBytes, chunkElapsed, chunkBuffer, 0, chunkLength);
+                    fileStream.Read(chunkBuffer, 0, chunkLength);
                     var chunkHash = sha.ComputeHash(chunkBuffer, 0, chunkLength).Take(32).ToArray();
                     if (verbose)
                         Console.Write(".");
-                    encKey = ExclusiveOR(encKey, chunkHash);
+                    encKey = ExclusiveOr(encKey, chunkHash);
                     chunkElapsed += chunkLength;
                     chunkLengths.Add(i, chunkLength);
                     i++;
                 }
-                while (chunkElapsed < fileBytes.Length);
+                while (chunkElapsed < fileStream.Length);
 
                 if (verbose)
                     Console.WriteLine($"\r\nEncryption Key: {ByteArrayToString(encKey)}");
+
+                fileStream.Seek(0, SeekOrigin.Begin);
                 using (var aes = new AesManaged
                 {
                     KeySize = 256,
@@ -127,21 +126,29 @@ namespace Mystiko.IO
                         var blockElapsed = 0;
                         foreach (var blockLength in chunkLengths)
                         {
+                            var fileBytes = new byte[blockLength.Value];
+                            fileStream.Read(fileBytes, 0, blockLength.Value);
+
                             using (var msBlock = new MemoryStream(blockLength.Value))
                             using (var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write))
                             {
-                                csBlock.Write(fileBytes, blockElapsed, blockLength.Value);
+                                csBlock.Write(fileBytes, 0, fileBytes.Length);
                                 if (blockLength.Key == chunkLengths.Count - 1)
                                     csBlock.FlushFinalBlock();
 
                                 var encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
                                 msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
                                 var block = blockCreator(sha, encryptedBlockBytes, Convert.ToUInt32(blockLength.Key));
+                                if (block == null)
+                                    throw new InvalidOperationException("Block creator returned 'null'");
+
                                 source.Add(block);
 
                                 if (verbose)
                                 {
-                                    Console.WriteLine($" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
+                                    Console.WriteLine(block.Path == null ? 
+                                        $" {blockLength.Key} {Path.GetFileName(block.Path)} ({encryptedBlockBytes.Length:N0} bytes)" :
+                                        $" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
                                     Console.WriteLine($" \\-{ByteArrayToString(block.FullHash)}");
                                 }
                                 csBlock.Close();
@@ -155,7 +162,11 @@ namespace Mystiko.IO
             var unlockXorKey = Block.CalculateUnlockXorKey(encKey, source);
             if (verbose)
                 Console.WriteLine($"Finalized manifest unlock XorKey: {ByteArrayToString(unlockXorKey)}");
-            var recoveredEncKey = ExclusiveOR(source.Select(b => b.FullHash.Take(32).ToArray()).Aggregate(ExclusiveOR), unlockXorKey);
+            var recoveredEncKey = ExclusiveOr(source.Select(b =>
+            {
+                Debug.Assert(b != null, "b != null");
+                return b.FullHash.Take(32).ToArray();
+            }).Aggregate(ExclusiveOr), unlockXorKey);
             Debug.Assert(encKey.SequenceEqual(recoveredEncKey));
 
             return new Tuple<FileManifest, IEnumerable<Block>>(new FileManifest
@@ -180,18 +191,25 @@ namespace Mystiko.IO
                 manifest = JsonConvert.DeserializeObject<FileManifest>(sr.ReadToEnd());
                 fs.Close();
             }
+            Debug.Assert(manifest != null, "manifest != null");
+            Debug.Assert(manifest.BlockHashes != null, "manifest.BlockHashes != null");
+            Debug.Assert(manifestFile.Directory != null, "manifestFile.Directory != null");
 
             var fileInfoList = new List<FileInfo>();
-            foreach (var file1 in Directory.GetFiles(manifestFile.Directory.FullName))
+            foreach (var file in Directory.GetFiles(manifestFile.Directory.FullName))
             {
-                var file = file1;
-                if (manifest.BlockHashes.Any(bh => file.IndexOf($"{manifest.Name}.{bh.Substring(0, 8)}", StringComparison.OrdinalIgnoreCase) > -1))
+                Debug.Assert(file != null, "file != null");
+                if (manifest.BlockHashes.Any(bh =>
+                {
+                    Debug.Assert(bh != null, "bh != null");
+                    return file.IndexOf($"{manifest.Name}.{bh.Substring(0, 8)}", StringComparison.OrdinalIgnoreCase) > -1;
+                }))
                     fileInfoList.Add(new FileInfo(file));
             }
             return UnchunkFile(manifest, fileInfoList, saveFile, overwrite);
         }
 
-        public static bool UnchunkFile([NotNull] FileManifest manifest, [NotNull] ICollection<FileInfo> fileBlocks, [NotNull] FileInfo saveFile, bool overwrite = false, bool verbose = false, bool verify = false)
+        private static bool UnchunkFile([NotNull] FileManifest manifest, [NotNull] ICollection<FileInfo> fileBlocks, [NotNull] FileInfo saveFile, bool overwrite = false, bool verbose = false)
         {
             if (manifest == null)
                 throw new ArgumentNullException(nameof(manifest));
@@ -212,6 +230,8 @@ namespace Mystiko.IO
             using (var sha = new SHA512Managed())
             {
                 foreach (var fileBlock in fileBlocks)
+                {
+                    Debug.Assert(fileBlock != null, "fileBlock != null");
                     using (var fs = new FileStream(fileBlock.FullName, FileMode.Open, FileAccess.Read, FileShare.None))
                     {
                         var hash = sha.ComputeHash(fs);
@@ -225,9 +245,12 @@ namespace Mystiko.IO
                         dictionary.Add(fileBlock, new Block(fileBlock.FullName, hash, last32Bytes));
                         fs.Close();
                     }
+                }
             }
 
             var i = 0;
+            Debug.Assert(manifest.BlockHashes != null, "manifest.BlockHashes != null");
+            Debug.Assert(manifest.BlockHashes.Length > 0, "manifest.BlockHashes.Length > 0");
             foreach (var blockHash in manifest.BlockHashes)
             {
                 var flag = false;
@@ -247,7 +270,7 @@ namespace Mystiko.IO
                     Console.WriteLine($"Could not match manifest block hash: {blockHash}");
             }
 
-            var encKey = ExclusiveOR(source.Select(b => b.FullHash.Take(32).ToArray()).Aggregate(ExclusiveOR), StringToByteArray(manifest.Unlock));
+            var encKey = ExclusiveOr(source.Select(b => b.FullHash.Take(32).ToArray()).Aggregate(ExclusiveOr), StringToByteArray(manifest.Unlock));
             if (verbose)
                 Console.WriteLine($"Recovered Encryption Key: {ByteArrayToString(encKey)}");
 
@@ -310,7 +333,7 @@ namespace Mystiko.IO
         }
 
         [NotNull, Pure]
-        public static byte[] ExclusiveOR([NotNull] byte[] arr1, [NotNull] byte[] arr2)
+        public static byte[] ExclusiveOr([NotNull] byte[] arr1, [NotNull] byte[] arr2)
         {
             if (arr1 == null)
                 throw new ArgumentNullException(nameof(arr1));
