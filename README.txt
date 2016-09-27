@@ -60,6 +60,9 @@ are or the order of the blocks).  Without all the blocks and the manifest file,
 no blocks can be decrypted since the unlock key must be XOR'ed with the hashes
 of all encrypted parts.
 
+The size of encrypted blocks are random so as to obscure which block is the
+final one.  This behavior can be overridden with the '--size' parameter.
+
 ==== Known issues / coming improvmeents ====
 
 Issue: It is possible to discern when any block is associated with the same
@@ -71,15 +74,6 @@ Response: This will soon be resolved by a coming feature that will XOR the
 hash blocks in the manifest file with the last 32 bytes of all other encrypted
 pieces.  This means that it requires all pieces plus the manifest file to
 verify the association of a block to a manifest file.
-
-
-Issue: It is possible to discern the last block of a file since it is a smaller
-size than the other uniform 10 MB blocks for files over 10 MB.
-
-Response: This will soon be resolved by a coming feature to randomize the size
-of blocks when MPM creates a package.  This also has the additional benefit of
-changing the total block count and hash values for each MPM parsing of any
-target file.
 
 
 Issue: It is possible to discern, by default operation, the name of a file that

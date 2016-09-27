@@ -34,7 +34,7 @@
                 }
 
                 var encryptFile = new FileInfo(options.EncryptFile);
-                var chunkResult = FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, options.Force, options.Verbose, options.Verify);
+                var chunkResult = FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, options.Force, options.Verbose, options.Verify, options.Size);
                 var manifestFile = new FileInfo(Path.Combine(encryptFile.Directory.FullName, encryptFile.Name + ".mystiko"));
 
                 if (manifestFile.Exists)

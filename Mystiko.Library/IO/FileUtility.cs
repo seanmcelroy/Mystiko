@@ -37,7 +37,8 @@ namespace Mystiko.IO
         public static Tuple<FileManifest, IEnumerable<Block>> ChunkFileViaOutputDirectory([NotNull] FileInfo file, [NotNull] string outputPath, 
             bool overwrite = false,
             bool verbose = false,
-            bool verify = false)
+            bool verify = false,
+            int? chunkSize = null)
         {
             if (file == null)
                 throw new ArgumentNullException(nameof(file));
@@ -54,11 +55,11 @@ namespace Mystiko.IO
                 br.Close();
             }
 
-            return ChunkFile(fileBytes, file, (ha, ba, ordering) => Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify), verbose, verify);
+            return ChunkFile(fileBytes, file, (ha, ba, ordering) => Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify), verbose, verify, chunkSize);
         }
 
         [NotNull]
-        private static Tuple<FileManifest, IEnumerable<Block>> ChunkFile([NotNull] byte[] fileBytes, [NotNull] FileInfo fileInfo, [NotNull] Func<HashAlgorithm, byte[], uint, Block> blockCreator, bool verbose = false, bool verify = false)
+        private static Tuple<FileManifest, IEnumerable<Block>> ChunkFile([NotNull] byte[] fileBytes, [NotNull] FileInfo fileInfo, [NotNull] Func<HashAlgorithm, byte[], uint, Block> blockCreator, bool verbose = false, bool verify = false, int? chunkSize = null)
         {
             if (fileBytes == null)
                 throw new ArgumentNullException(nameof(fileBytes));
@@ -67,8 +68,8 @@ namespace Mystiko.IO
             if (blockCreator == null)
                 throw new ArgumentNullException(nameof(blockCreator));
 
-            var length = (int)Math.Ceiling((decimal)fileBytes.Length / Chunk.CHUNK_SIZE_BYTES);
-            //var chunkLengths = new Dictionary<int, uint>();
+            //var length = (int)Math.Ceiling((decimal)fileBytes.Length / Chunk.CHUNK_SIZE_BYTES);
+            var chunkLengths = new Dictionary<int, int>();
             var source = new List<Block>();
             var encKey = new byte[32];
 
@@ -76,16 +77,36 @@ namespace Mystiko.IO
             {
                 if (verbose)
                     Console.Write("Hashing chunks");
-                for (uint index = 0; index < length; ++index)
+                var random = new Random(Environment.TickCount);
+                var chunkElapsed = 0;
+                var i = 0;
+
+                do
                 {
-                    var chunkLength = index == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
-                    var buffer = new byte[Chunk.CHUNK_SIZE_BYTES];
-                    Array.Copy(fileBytes, Chunk.CHUNK_SIZE_BYTES * index, buffer, 0, chunkLength);
-                    var chunkHash = sha.ComputeHash(buffer, 0, Chunk.CHUNK_SIZE_BYTES).Take(32).ToArray();
+                    //var chunkLength = i == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
+                    var chunkLength = chunkSize ?? random.Next(1024 * 1024, 1024 * 1024 * 10);
+                    if (fileBytes.Length - chunkElapsed < chunkLength)
+                    {
+                        // Last chunk
+                        chunkLength = fileBytes.Length - chunkElapsed;
+                    }
+                    else
+                    {
+                        if (chunkLength % 128 != 0)
+                            chunkLength -= chunkLength % 128;
+                    }
+                    
+                    var chunkBuffer = new byte[chunkLength];
+                    Array.Copy(fileBytes, chunkElapsed, chunkBuffer, 0, chunkLength);
+                    var chunkHash = sha.ComputeHash(chunkBuffer, 0, chunkLength).Take(32).ToArray();
                     if (verbose)
                         Console.Write(".");
                     encKey = ExclusiveOR(encKey, chunkHash);
+                    chunkElapsed += chunkLength;
+                    chunkLengths.Add(i, chunkLength);
+                    i++;
                 }
+                while (chunkElapsed < fileBytes.Length);
 
                 if (verbose)
                     Console.WriteLine($"\r\nEncryption Key: {ByteArrayToString(encKey)}");
@@ -102,28 +123,30 @@ namespace Mystiko.IO
                     {
                         if (verbose)
                             Console.WriteLine("Encrypting blocks");
-                        for (var index = 0; index < length; ++index)
+
+                        var blockElapsed = 0;
+                        foreach (var blockLength in chunkLengths)
                         {
-                            var blockLength = index == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
-                            using (var msBlock = new MemoryStream(blockLength))
+                            using (var msBlock = new MemoryStream(blockLength.Value))
                             using (var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write))
                             {
-                                csBlock.Write(fileBytes, Chunk.CHUNK_SIZE_BYTES * index, blockLength);
-                                if (index == length - 1)
+                                csBlock.Write(fileBytes, blockElapsed, blockLength.Value);
+                                if (blockLength.Key == chunkLengths.Count - 1)
                                     csBlock.FlushFinalBlock();
 
-                                var encryptedBlockBytes = new byte[blockLength + Math.Max(0L, msBlock.Length % 128L - blockLength % 128)];
+                                var encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
                                 msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
-                                var block = blockCreator(sha, encryptedBlockBytes, Convert.ToUInt32(index));
+                                var block = blockCreator(sha, encryptedBlockBytes, Convert.ToUInt32(blockLength.Key));
                                 source.Add(block);
 
                                 if (verbose)
                                 {
-                                    Console.WriteLine($" {index} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
+                                    Console.WriteLine($" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
                                     Console.WriteLine($" \\-{ByteArrayToString(block.FullHash)}");
                                 }
                                 csBlock.Close();
                             }
+                            blockElapsed += blockLength.Value;
                         }
                     }
                 }

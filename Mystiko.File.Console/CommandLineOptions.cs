@@ -20,6 +20,9 @@
         [Option('p', "pause", HelpText = "Pauses at the end of the operation")]
         public bool Pause { get; set; }
 
+        [Option('s', "size", HelpText = "Size of the split block files, in bytes.  If not specified, each block file will be a random size between 1 MB and 10 MB")]
+        public int? Size { get; set; }
+
         [Option('v', "verbose", HelpText = "Write verbose output")]
         public bool Verbose { get; set; }
 
