@@ -7,6 +7,7 @@ namespace Mystiko.IO
     using System.IO;
     using System.Linq;
     using System.Security.Cryptography;
+    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
@@ -42,7 +43,7 @@ namespace Mystiko.IO
         }
 
         [NotNull]
-        public static Block CreateViaTemp(
+        public static async Task<Block> CreateViaTemp(
             [NotNull] HashAlgorithm hasher,
             [NotNull] byte[] encryptedChunk,
             uint ordering)
@@ -60,10 +61,8 @@ namespace Mystiko.IO
             var block = new Block(System.IO.Path.GetTempFileName(), encryptedChunkHash, last32Bytes);
 
             using (var fs = new FileStream(block.Path, FileMode.Open, FileAccess.Write, FileShare.None))
-            using (var bw = new BinaryWriter(fs))
             {
-                bw.Write(encryptedChunk, 0, encryptedChunk.Length);
-                bw.Write(ordering);
+                await fs.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
                 fs.Close();
             }
 
@@ -71,7 +70,7 @@ namespace Mystiko.IO
         }
 
         [NotNull]
-        public static Block CreateViaOutputDirectory(
+        public static async Task<Block> CreateViaOutputDirectory(
             [NotNull] HashAlgorithm hasher,
             [NotNull] byte[] encryptedChunk,
             [NotNull] string path,
@@ -105,9 +104,8 @@ namespace Mystiko.IO
             Debug.Assert(block.Path != null, "block.Path != null");
 
             using (var fs = new FileStream(block.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
-            using (var bw = new BinaryWriter(fs))
             {
-                bw.Write(encryptedChunk, 0, encryptedChunk.Length);
+                await fs.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
                 fs.Close();
             }
 

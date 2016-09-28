@@ -1,6 +1,7 @@
 ﻿namespace Mystiko.File.Console
 {
     using System.IO;
+    using System.Threading.Tasks;
 
     using IO;
 
@@ -42,27 +43,30 @@
                     return;
                 }
 
-                var chunkResult = FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, options.Force, options.Verbose, options.Verify, options.Size);
-                var manifestFile = new FileInfo(Path.Combine(encryptFile.Directory.FullName, encryptFile.Name + ".mystiko"));
+                Task.Run(async () =>
+                           {
+                               var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, options.Force, options.Verbose, options.Verify, options.Size);
+                               var manifestFile = new FileInfo(Path.Combine(encryptFile.Directory.FullName, encryptFile.Name + ".mystiko"));
 
-                if (manifestFile.Exists)
-                {
-                    if (!options.Force)
-                    {
-                        System.Console.WriteLine("Manifest file already exists: {0}", manifestFile.FullName);
-                        if (options.Pause)
-                            System.Console.ReadLine();
-                        return;
-                    }
+                               if (manifestFile.Exists)
+                               {
+                                   if (!options.Force)
+                                   {
+                                       System.Console.WriteLine("Manifest file already exists: {0}", manifestFile.FullName);
+                                       if (options.Pause)
+                                           System.Console.ReadLine();
+                                       return;
+                                   }
 
-                    manifestFile.Delete();
-                }
+                                   manifestFile.Delete();
+                               }
 
-                using (var sw = new StreamWriter(manifestFile.FullName))
-                {
-                    sw.Write(JsonConvert.SerializeObject(chunkResult.Item1));
-                    sw.Close();
-                }
+                               using (var sw = new StreamWriter(manifestFile.FullName))
+                               {
+                                   await sw.WriteAsync(JsonConvert.SerializeObject(chunkResult.Item1));
+                                   sw.Close();
+                               }
+                           }).Wait();
 
                 System.Console.WriteLine("Encryption complete.");
                 if (options.Pause)
@@ -96,7 +100,12 @@
                     System.Console.WriteLine("Deleted output file that already existed: {0}", output);
                 }
 
-                var unchunkResult = FileUtility.UnchunkFileViaOutputDirectory(new FileInfo(options.DecryptFile), new FileInfo(output), options.Force);
+                var unchunkResult = false;
+                Task.Run(async () =>
+                           {
+                               unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(new FileInfo(options.DecryptFile), new FileInfo(output), options.Force);
+                           }).Wait();
+
                 if (unchunkResult)
                 {
                     System.Console.WriteLine("Decryption complete: {0}", output);

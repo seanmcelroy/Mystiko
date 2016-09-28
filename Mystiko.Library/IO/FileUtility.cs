@@ -8,6 +8,8 @@ using System.Security.Cryptography;
 
 namespace Mystiko.IO
 {
+    using System.Threading.Tasks;
+
     using JetBrains.Annotations;
 
     public static class FileUtility
@@ -15,7 +17,7 @@ namespace Mystiko.IO
         public const uint FILE_PACKAGING_PROTOCOL_VERSION = 1;
 
         [NotNull]
-        public static Tuple<FileManifest, IEnumerable<Block>> ChunkFileViaTemp([NotNull] FileInfo file)
+        public static async Task<Tuple<FileManifest, IEnumerable<Block>>> ChunkFileViaTemp([NotNull] FileInfo file)
         {
             if (file == null)
                 throw new ArgumentNullException(nameof(file));
@@ -24,12 +26,12 @@ namespace Mystiko.IO
 
             using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
             {
-                return ChunkFile(fs, file, Block.CreateViaTemp);
+                return await ChunkFile(fs, file, Block.CreateViaTemp);
             }
         }
 
         [NotNull]
-        public static Tuple<FileManifest, IEnumerable<Block>> ChunkFileViaOutputDirectory([NotNull] FileInfo file, [NotNull] string outputPath, 
+        public static async Task<Tuple<FileManifest, IEnumerable<Block>>> ChunkFileViaOutputDirectory([NotNull] FileInfo file, [NotNull] string outputPath, 
             bool overwrite = false,
             bool verbose = false,
             bool verify = false,
@@ -44,17 +46,17 @@ namespace Mystiko.IO
 
             using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
             {
-                return ChunkFile(fs, file, (ha, ba, ordering) =>
+                return await ChunkFile(fs, file, async (ha, ba, ordering) => 
                 {
                     Debug.Assert(ha != null, "ha != null");
                     Debug.Assert(ba != null, "ba != null");
-                    return Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify);
+                    return await Block.CreateViaOutputDirectory(ha, ba, outputPath, file.Name, overwrite, verbose, verify);
                 }, verbose, chunkSize);
             }
         }
 
         [NotNull]
-        private static Tuple<FileManifest, IEnumerable<Block>> ChunkFile([NotNull] Stream fileStream, [NotNull] FileInfo fileInfo, [NotNull] Func<HashAlgorithm, byte[], uint, Block> blockCreator, bool verbose = false, int? chunkSize = null)
+        private static async Task<Tuple<FileManifest, IEnumerable<Block>>> ChunkFile([NotNull] Stream fileStream, [NotNull] FileInfo fileInfo, [NotNull] Func<HashAlgorithm, byte[], uint, Task<Block>> blockCreatorTask, bool verbose = false, int? chunkSize = null)
         {
             if (fileStream == null)
                 throw new ArgumentNullException(nameof(fileStream));
@@ -62,8 +64,8 @@ namespace Mystiko.IO
                 throw new InvalidOperationException("File stream does not support reads in its current state");
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
-            if (blockCreator == null)
-                throw new ArgumentNullException(nameof(blockCreator));
+            if (blockCreatorTask == null)
+                throw new ArgumentNullException(nameof(blockCreatorTask));
 
             //var length = (int)Math.Ceiling((decimal)fileBytes.Length / Chunk.CHUNK_SIZE_BYTES);
             var chunkLengths = new Dictionary<int, int>();
@@ -94,7 +96,7 @@ namespace Mystiko.IO
                     }
                     
                     var chunkBuffer = new byte[chunkLength];
-                    fileStream.Read(chunkBuffer, 0, chunkLength);
+                    await fileStream.ReadAsync(chunkBuffer, 0, chunkLength);
                     var chunkHash = sha.ComputeHash(chunkBuffer, 0, chunkLength).Take(32).ToArray();
                     if (verbose)
                         Console.Write(".");
@@ -127,7 +129,7 @@ namespace Mystiko.IO
                         foreach (var blockLength in chunkLengths)
                         {
                             var fileBytes = new byte[blockLength.Value];
-                            fileStream.Read(fileBytes, 0, blockLength.Value);
+                            await fileStream.ReadAsync(fileBytes, 0, blockLength.Value);
 
                             using (var msBlock = new MemoryStream(blockLength.Value))
                             using (var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write))
@@ -138,7 +140,7 @@ namespace Mystiko.IO
 
                                 var encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
                                 msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
-                                var block = blockCreator(sha, encryptedBlockBytes, Convert.ToUInt32(blockLength.Key));
+                                var block = await blockCreatorTask.Invoke(sha, encryptedBlockBytes, Convert.ToUInt32(blockLength.Key));
                                 if (block == null)
                                     throw new InvalidOperationException("Block creator returned 'null'");
 
@@ -177,7 +179,7 @@ namespace Mystiko.IO
             }, source);
         }
 
-        public static bool UnchunkFileViaOutputDirectory([NotNull] FileInfo manifestFile, [NotNull] FileInfo saveFile, bool overwrite)
+        public static async Task<bool> UnchunkFileViaOutputDirectory([NotNull] FileInfo manifestFile, [NotNull] FileInfo saveFile, bool overwrite)
         {
             if (manifestFile == null)
                 throw new ArgumentNullException(nameof(manifestFile));
@@ -206,10 +208,10 @@ namespace Mystiko.IO
                 }))
                     fileInfoList.Add(new FileInfo(file));
             }
-            return UnchunkFile(manifest, fileInfoList, saveFile, overwrite);
+            return await UnchunkFile(manifest, fileInfoList, saveFile, overwrite);
         }
 
-        private static bool UnchunkFile([NotNull] FileManifest manifest, [NotNull] ICollection<FileInfo> fileBlocks, [NotNull] FileInfo saveFile, bool overwrite = false, bool verbose = false)
+        private static async Task<bool> UnchunkFile([NotNull] FileManifest manifest, [NotNull] ICollection<FileInfo> fileBlocks, [NotNull] FileInfo saveFile, bool overwrite = false, bool verbose = false)
         {
             if (manifest == null)
                 throw new ArgumentNullException(nameof(manifest));
@@ -240,7 +242,7 @@ namespace Mystiko.IO
 
                         fs.Seek(-32, SeekOrigin.End);
                         var last32Bytes = new byte[32];
-                        fs.Read(last32Bytes, 0, 32);
+                        await fs.ReadAsync(last32Bytes, 0, 32);
 
                         dictionary.Add(fileBlock, new Block(fileBlock.FullName, hash, last32Bytes));
                         fs.Close();
@@ -280,7 +282,6 @@ namespace Mystiko.IO
                 iv = sha.ComputeHash(encKey).Take(16).ToArray();
 
             using (var fsSave = new FileStream(saveFile.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var bwSave = new BinaryWriter(fsSave))
             {
                 foreach (var block in source)
                 {
@@ -310,11 +311,11 @@ namespace Mystiko.IO
                                             decryptReadMax += 128 - decryptReadMax % 128;
                                         if ((int)fsBlock.Length - totalDecryptedRead < buffer.Length)
                                             decryptReadMax -= 4;
-                                        decryptReadActual = csBlock.Read(buffer, 0, decryptReadMax);
+                                        decryptReadActual = await csBlock.ReadAsync(buffer, 0, decryptReadMax);
                                         totalDecryptedRead += decryptReadActual;
                                         if (verbose)
                                             Console.Write(".");
-                                        bwSave.Write(buffer, 0, decryptReadActual);
+                                        await fsSave.WriteAsync(buffer, 0, decryptReadActual);
                                     }
                                     else
                                         break;
