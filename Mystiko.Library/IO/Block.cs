@@ -43,6 +43,34 @@ namespace Mystiko.IO
         }
 
         [NotNull]
+        public static async Task<Block> NoSavedChunk(
+           [NotNull] HashAlgorithm hasher,
+           [NotNull] byte[] encryptedChunk,
+            uint ordering)
+        {
+            if (encryptedChunk == null)
+                throw new ArgumentNullException(nameof(encryptedChunk));
+            if (encryptedChunk.Length == 0)
+                throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
+
+            var last32Bytes = new byte[32];
+            if (encryptedChunk.Length < 32)
+            {
+                Array.Copy(encryptedChunk, 0, last32Bytes, 32 - encryptedChunk.Length, encryptedChunk.Length);
+            }
+            else
+            {
+                Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+            }
+
+            var encryptedChunkHash = hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length);
+            Debug.Assert(encryptedChunkHash != null, "encryptedChunkHash != null");
+            var block = new Block(null, encryptedChunkHash, last32Bytes);
+
+            return block;
+        }
+
+        [NotNull]
         public static async Task<Block> CreateViaTemp(
             [NotNull] HashAlgorithm hasher,
             [NotNull] byte[] encryptedChunk,
@@ -54,7 +82,14 @@ namespace Mystiko.IO
                 throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
 
             var last32Bytes = new byte[32];
-            Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+            if (encryptedChunk.Length < 32)
+            {
+                Array.Copy(encryptedChunk, 0, last32Bytes, 32 - encryptedChunk.Length, encryptedChunk.Length);
+            }
+            else
+            {
+                Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+            }
 
             var encryptedChunkHash = hasher.ComputeHash(encryptedChunk, 0, encryptedChunk.Length);
             Debug.Assert(encryptedChunkHash != null, "encryptedChunkHash != null");
@@ -98,14 +133,22 @@ namespace Mystiko.IO
             }
 
             var last32Bytes = new byte[32];
-            Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+            if (encryptedChunk.Length < 32)
+            {
+                Array.Copy(encryptedChunk, 0, last32Bytes, 32 - encryptedChunk.Length, encryptedChunk.Length);
+            }
+            else
+            {
+                Array.Copy(encryptedChunk, encryptedChunk.Length - 32, last32Bytes, 0, 32);
+            }
 
             var block = new Block(blockPath, encryptedChunkHash, last32Bytes);
             Debug.Assert(block.Path != null, "block.Path != null");
 
             using (var fs = new FileStream(block.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
+            using (var bs = new BufferedStream(fs))
             {
-                await fs.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
+                await bs.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
                 fs.Close();
             }
 
@@ -117,11 +160,12 @@ namespace Mystiko.IO
 
                 byte[] blockFileHash;
                 using (var fs = new FileStream(block.Path, FileMode.Open, FileAccess.Read, FileShare.Write))
+                using (var bs = new BufferedStream(fs))
                 {
-                    blockFileHash = hasher.ComputeHash(fs);
+                    blockFileHash = hasher.ComputeHash(bs);
                     if (verbose)
                         Console.WriteLine($"Hash for: {new FileInfo(block.Path).Name}: {FileUtility.ByteArrayToString(blockFileHash).Substring(0, 8)}");
-                    fs.Close();
+                    bs.Close();
                 }
 
                 if (!encryptedChunkHash.SequenceEqual(blockFileHash))

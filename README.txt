@@ -29,6 +29,9 @@ manifest file are required.  Usage parameters are as follows:
 
   -e, --encrypt    The path to file to encrypt and package
 
+  -h, --hash       The path to hash for a manifest output, without actually
+                   creating split encrypted files
+
   -f, --force      Overwrite files if required
 
   -o, --output     If used with the --decrypt operation, specifies the path for

@@ -3,29 +3,21 @@
 namespace Mystiko.Console
 {
     using System;
-    using System.IO;
-    using System.Linq;
-
-    using Mystiko.IO;
 
     using Net;
 
-    using File = IO.FileUtility;
-
-    static class Program
+    public static class Program
     {
-        static void Main(string[] args)
+        public static void Main()
         {
-            System.Console.WriteLine("Starting...");
+            Console.Write("Starting...");
 
             using (var server = new Server())
             using (var serverTask = Task.Run(async () => { await server.StartAsync(); }))
             {
-
-                System.Console.ReadLine();
+                Console.WriteLine("UP");
+                Console.ReadLine();
             }
-
-
         }
     }
 }

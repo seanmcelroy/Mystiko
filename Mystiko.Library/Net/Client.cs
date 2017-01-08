@@ -53,8 +53,8 @@ namespace Mystiko.Net
 
                 }
             });
-            this._receiveTask.Start();
 
+            this._receiveTask.Start();
         }
     }
 }

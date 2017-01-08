@@ -56,8 +56,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IO\Block.cs" />
+    <Compile Include="IO\LocalDirectoryManifest.cs" />
+    <Compile Include="IO\DirectoryUtility.cs" />
     <Compile Include="IO\FileUtility.cs" />
     <Compile Include="IO\FileManifest.cs" />
+    <Compile Include="IO\LocalShareFileManifest.cs" />
     <Compile Include="Messages\FileInfo.cs" />
     <Compile Include="Messages\FileManifest.cs" />
     <Compile Include="Net\Client.cs" />

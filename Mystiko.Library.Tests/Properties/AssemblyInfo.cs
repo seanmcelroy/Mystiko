@@ -4,12 +4,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Mystiko.Console")]
+[assembly: AssemblyTitle("Mystiko.Library.Tests")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Mystiko.Console")]
-[assembly: AssemblyCopyright("Copyright © Sean McElroy 2016")]
+[assembly: AssemblyProduct("Mystiko.Library.Tests")]
+[assembly: AssemblyCopyright("Copyright © Sean McElroy 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -19,7 +19,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("391dacb2-80cc-4416-b6a6-fda94a740925")]
+[assembly: Guid("5fac7682-cb0a-4557-8dbd-137a019b90a4")]
 
 // Version information for an assembly consists of the following four values:
 //

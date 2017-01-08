@@ -18,7 +18,7 @@ namespace Mystiko.Net
 
         private readonly CancellationTokenSource _acceptCancellationTokenSource = new CancellationTokenSource();
 
-        private bool disposed;
+        private bool _disposed;
         private bool disposing;
 
         public async Task StartAsync()
@@ -42,7 +42,7 @@ namespace Mystiko.Net
         /// </summary>
         public void Dispose()
         {
-            if (!this.disposed)
+            if (!this._disposed)
             {
                 if (this.disposing)
                 {
@@ -56,7 +56,7 @@ namespace Mystiko.Net
                 // if we add them, they need to be released here.
             }
 
-            this.disposed = true;
+            this._disposed = true;
         }
     }
 }

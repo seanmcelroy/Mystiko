@@ -11,6 +11,9 @@ namespace Mystiko.IO
 
     public class FileManifest
     {
+        /// <summary>
+        /// Gets or sets the version of the manifest protocol
+        /// </summary>
         [UsedImplicitly]
         public uint Version { get; set; } = FileUtility.FILE_PACKAGING_PROTOCOL_VERSION;
 
