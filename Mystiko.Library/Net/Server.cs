@@ -1,40 +1,70 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-
-namespace Mystiko.Net
+﻿namespace Mystiko.Net
 {
     using System;
+    using System.Diagnostics;
     using System.Net;
-    using System.Net.Sockets;
     using System.Threading;
+    using System.Threading.Tasks;
+
+    using JetBrains.Annotations;
 
     public class Server : IDisposable
     {
-        private TcpListener _listener;
+        [NotNull]
+        private readonly IServerChannel _serverChannel;
 
-        private readonly List<Client> _clients = new List<Client>();
-
-        private Task _acceptTask;
-
+        [NotNull]
         private readonly CancellationTokenSource _acceptCancellationTokenSource = new CancellationTokenSource();
 
         private bool _disposed;
         private bool disposing;
 
+        public Server([NotNull] Func<IServerChannel> serverChannelFactory = null)
+        {
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(IPAddress.Any, 5091))).Invoke();
+            if (channel == null)
+            {
+                throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));
+            }
+
+            Debug.Assert(channel != null, "channel != null");
+            this._serverChannel = channel;
+        }
+
+        /// <summary>
+        /// Places the server into a state where it listens for new connections
+        /// </summary>
+        /// <returns>A task that can be awaited while the operation completes</returns>
+        [NotNull]
         public async Task StartAsync()
         {
-            this._listener = new TcpListener(IPAddress.Any, 5091);
-            this._acceptTask = new Task(async () =>
+            if (this._disposed)
             {
-                while (!this._acceptCancellationTokenSource.Token.IsCancellationRequested)
-                {
-                    var tcpClient = await this._listener.AcceptTcpClientAsync();
-                    this._clients.Add(new Client(tcpClient, this._acceptCancellationTokenSource.Token));
-                }
-            });
+                throw new ObjectDisposedException("Server");
+            }
 
-            this._listener.Start();
-            this._acceptTask.Start();
+            await this._serverChannel.StartAsync(this._acceptCancellationTokenSource.Token);
+        }
+
+        /// <summary>
+        /// Initiates a connection from this server to a peer node
+        /// </summary>
+        /// <param name="addressInformation">The address information for how to connect to the peer, as interpreted by the <see cref="IServerChannel"/> implementation</param>
+        /// <returns>A task that can be awaited while the operation completes</returns>
+        [NotNull]
+        public async Task ConnectToPeerAsync([NotNull] object addressInformation)
+        {
+            if (addressInformation == null)
+            {
+                throw new ArgumentNullException(nameof(addressInformation));
+            }
+
+            if (this._disposed)
+            {
+                throw new ObjectDisposedException("Server");
+            }
+
+            await this._serverChannel.ConnectToPeerAsync(addressInformation, this._acceptCancellationTokenSource.Token);
         }
 
         /// <summary>
@@ -48,8 +78,10 @@ namespace Mystiko.Net
                 {
                     // Dispose managed resources.
                     this._acceptCancellationTokenSource.Cancel();
-                    this._listener.Stop();
-                    this._acceptTask.Dispose();
+                    if (this._serverChannel is IDisposable)
+                    {
+                        ((IDisposable)this._serverChannel).Dispose();
+                    }
                 }
 
                 // There are no unmanaged resources to release, but

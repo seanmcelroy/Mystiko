@@ -12,7 +12,11 @@
 
     public static class DirectoryUtility
     {
-        public static async Task<LocalDirectoryManifest> PreHashDirectory([NotNull] string inputDirectoryPath, int? chunkSize = null)
+        public static async Task<LocalDirectoryManifest> PreHashDirectory(
+            [NotNull] string inputDirectoryPath, 
+            [CanBeNull] Action<string> enteringDirectoryAction = null, 
+            [CanBeNull] Action<string> hashingFileAction = null, 
+            int? chunkSize = null)
         {
             if (string.IsNullOrEmpty(inputDirectoryPath))
                 throw new ArgumentNullException(nameof(inputDirectoryPath));
@@ -26,6 +30,7 @@
                 if (filePath == null)
                     continue;
 
+                hashingFileAction?.Invoke(filePath);
                 fileManifests.Add(await PreHashFile(filePath, chunkSize));
             }
 
@@ -34,7 +39,8 @@
                 if (directoryPath == null)
                     continue;
 
-                fileManifests.AddRange((await PreHashDirectory(directoryPath, chunkSize)).LocalFileManifests);
+                enteringDirectoryAction?.Invoke(directoryPath);
+                fileManifests.AddRange((await PreHashDirectory(directoryPath, enteringDirectoryAction, hashingFileAction, chunkSize)).LocalFileManifests);
             }
             
             return new LocalDirectoryManifest

@@ -31,12 +31,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="JetBrains.Annotations, Version=10.1.5.0, Culture=neutral, PublicKeyToken=1010a0d8d6380325, processorArchitecture=MSIL">
-      <HintPath>..\packages\JetBrains.Annotations.10.1.5\lib\net\JetBrains.Annotations.dll</HintPath>
+    <Reference Include="BouncyCastle.Crypto, Version=1.8.1.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
+      <HintPath>..\packages\BouncyCastle.1.8.1\lib\BouncyCastle.Crypto.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="jose-jwt, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\jose-jwt.2.0.1\lib\net40\jose-jwt.dll</HintPath>
+    <Reference Include="JetBrains.Annotations, Version=10.2.1.0, Culture=neutral, PublicKeyToken=1010a0d8d6380325, processorArchitecture=MSIL">
+      <HintPath>..\packages\JetBrains.Annotations.10.2.1\lib\net\JetBrains.Annotations.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="jose-jwt, Version=2.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\jose-jwt.2.1.0\lib\net461\jose-jwt.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -55,6 +59,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Cryptography\HashUtility.cs" />
+    <Compile Include="Database\Records\IRecord.cs" />
+    <Compile Include="Database\Records\RecordType.cs" />
+    <Compile Include="Database\Records\IdentityAnnounce.cs" />
     <Compile Include="IO\Block.cs" />
     <Compile Include="IO\LocalDirectoryManifest.cs" />
     <Compile Include="IO\DirectoryUtility.cs" />
@@ -64,7 +72,14 @@
     <Compile Include="Messages\FileInfo.cs" />
     <Compile Include="Messages\FileManifest.cs" />
     <Compile Include="Net\Client.cs" />
+    <Compile Include="Net\IClientChannel.cs" />
+    <Compile Include="Net\IServerChannel.cs" />
+    <Compile Include="Net\Messages\IMessage.cs" />
+    <Compile Include="Net\Messages\NodeAnnounce.cs" />
+    <Compile Include="Net\Messages\NodeHello.cs" />
     <Compile Include="Net\Server.cs" />
+    <Compile Include="Net\TcpClientChannel.cs" />
+    <Compile Include="Net\TcpServerChannel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

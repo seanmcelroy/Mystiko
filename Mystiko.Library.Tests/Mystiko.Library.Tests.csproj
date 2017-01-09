@@ -36,6 +36,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
   </ItemGroup>
   <Choose>
@@ -53,8 +54,10 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="Database\Records\IdentityAnnounceUnitTest.cs" />
     <Compile Include="IO\DirectoryUtilityUnitTest.cs" />
     <Compile Include="IO\FileUtilityUnitTest.cs" />
+    <Compile Include="Net\ServerUnit.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

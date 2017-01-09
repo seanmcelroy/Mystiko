@@ -1,13 +1,31 @@
-﻿using System;
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="TcpClientChannel.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   A network channel for communicating with clients over TCP/IP
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
 
 namespace Mystiko.Net
 {
+    using System;
+    using System.Collections.Generic;
     using System.Linq;
+    using System.Net;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
-    public class Client
+
+    using JetBrains.Annotations;
+
+    using Messages;
+
+    /// <summary>
+    /// A network channel for communicating with clients over TCP/IP
+    /// </summary>
+    public class TcpClientChannel : IClientChannel
     {
         /// <summary>
         /// The size of the stream receive buffer
@@ -18,10 +36,19 @@ namespace Mystiko.Net
 
         private Task _receiveTask;
 
+        [NotNull]
         private readonly byte[] _rawInputBuffer = new byte[BufferSize];
+
+        [NotNull]
         private readonly StringBuilder _builder = new StringBuilder();
 
-        internal Client(TcpClient client, CancellationToken serverCancellationToken)
+        /// <summary>
+        /// The message handlers for this channel
+        /// </summary>
+        [NotNull]
+        private List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
+
+        public TcpClientChannel(TcpClient client, CancellationToken serverCancellationToken)
         {
             if (client == null)
                 throw new ArgumentNullException(nameof(client));
@@ -54,6 +81,23 @@ namespace Mystiko.Net
             });
 
             this._receiveTask.Start();
+        }
+
+        /// <inheritdoc />
+        public void RegisterHandler(Action<IMessage> messageHandler)
+        {
+            if (messageHandler == null)
+            {
+                throw new ArgumentNullException(nameof(messageHandler));
+            }
+
+            this._messageHandlers.Add(messageHandler);
+        }
+
+        /// <inheritdoc />
+        public void Send(IMessage message)
+        {
+            throw new NotImplementedException();
         }
     }
 }

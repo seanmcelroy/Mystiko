@@ -9,7 +9,11 @@
 
     using File = System.IO.File;
 
-    public class Program
+    /// <summary>
+    /// A basic command line utility for executing methods of the Mystiko library
+    /// </summary>
+    // ReSharper disable once StyleCop.SA1650
+    public static class Program
     {
         public static void Main(string[] args)
         {
@@ -147,6 +151,10 @@
             }
         }
 
+        /// <summary>
+        /// Pre-hashes a directory without actually creating encrypted split files
+        /// </summary>
+        /// <param name="options">Command line options used for identifying and pre-hashing the directory</param>
         private static void Prehash(CommandLineOptions options)
         {
             System.Console.WriteLine("Prehash {0}... ", options.PrehashPath);
@@ -163,7 +171,10 @@
             {
                 Task.Run(async () =>
                     {
-                        var localManifest = await DirectoryUtility.PreHashDirectory(options.PrehashPath);
+                        var localManifest = await DirectoryUtility.PreHashDirectory(
+                            options.PrehashPath,
+                            s => System.Console.WriteLine($"Directory: {s}"),
+                            s => System.Console.WriteLine($"\tFile: {s}"));
                         var manifestFile = new FileInfo(Path.Combine(options.PrehashPath, "directory.mystiko"));
 
                         if (manifestFile.Exists)

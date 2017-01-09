@@ -1,5 +1,15 @@
-﻿namespace Mystiko.Library.Tests
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="FileUtilityUnitTest.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   Defines the FileUtilityUnitTest type.
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Library.Tests
 {
+    using System;
     using System.IO;
     using System.Security.Cryptography;
     using System.Threading.Tasks;
@@ -13,6 +23,39 @@
     [TestClass]
     public class FileUtilityUnitTest
     {
+        [TestMethod, ExpectedException(typeof(ArgumentNullException))]
+        public async Task ChunkFileViaOutputDirectory_NullEncryptFile()
+        {
+            // ReSharper disable once AssignNullToNotNullAttribute
+            await FileUtility.ChunkFileViaOutputDirectory(null, @"C:\", true, true, true);
+        }
+
+        [TestMethod, ExpectedException(typeof(FileNotFoundException))]
+        public async Task ChunkFileViaOutputDirectory_MissingEncryptFile()
+        {
+            var fi = new FileInfo(@"C:\does_not_exist.test");
+            if (fi.Exists)
+                Assert.Inconclusive($"Test file actually exists, but should not: {fi.FullName}");
+            else
+                await FileUtility.ChunkFileViaOutputDirectory(fi, fi.DirectoryName, true, true, true);
+        }
+
+        [TestMethod, ExpectedException(typeof(ArgumentNullException))]
+        public async Task ChunkFileViaOutputDirectory_NullOutputDirectory()
+        {
+            var encryptFilePath = @"C:\Users\Smcelroy\Downloads\node-v6.4.0-x64.msi";
+            if (!File.Exists(encryptFilePath))
+            {
+                Assert.Inconclusive($"Unable to find test file {encryptFilePath}");
+            }
+
+            var encryptFile = new FileInfo(encryptFilePath);
+            Assert.IsTrue(encryptFile.Exists);
+
+            // ReSharper disable once AssignNullToNotNullAttribute
+            await FileUtility.ChunkFileViaOutputDirectory(encryptFile, null, true, true, true);
+        }
+
         [TestMethod]
         public async Task EncryptDecryptViaFileSystem()
         {

@@ -1,4 +1,13 @@
-﻿namespace Mystiko.Library.Tests.IO
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="DirectoryUtilityUnitTest.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   Summary description for DirectoryUtilityUnitTest
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Library.Tests.IO
 {
     using System.IO;
     using System.Threading.Tasks;
@@ -8,7 +17,7 @@
     using Mystiko.IO;
 
     /// <summary>
-    /// Summary description for DirectoryUtilityUnitTest
+    /// Summary description for directory utility unit tests
     /// </summary>
     [TestClass]
     public class DirectoryUtilityUnitTest
