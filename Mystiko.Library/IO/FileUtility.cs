@@ -19,7 +19,7 @@
         public const uint FILE_LOCAL_SHARE_MANAGEMENT_PROTOCOL_VERSION = 1;
         public const uint FILE_PACKAGING_PROTOCOL_VERSION = 1;
 
-        [NotNull, ItemNotNull]
+        [NotNull, ItemNotNull, Pure]
         public static async Task<FileManifest> ChunkFileMetadataOnly(
             [NotNull] FileInfo file,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -93,15 +93,25 @@
             }
         }
 
+        [Pure, NotNull]
         public static IEnumerable<int> GetChunkLengths(long fileSizeBytes, int? chunkSize)
         {
             var random = new Random(Environment.TickCount);
-            var chunkElapsed = 0;
+            var chunkElapsed = 0L;
 
             do
             {
                 //var chunkLength = i == length - 1 ? fileBytes.Length - Chunk.CHUNK_SIZE_BYTES * (length - 1) : Chunk.CHUNK_SIZE_BYTES;
-                var chunkLength = chunkSize ?? random.Next(1024 * 1024, 1024 * 1024 * 10);
+
+                /* We need to make sure huge files can be uploaded; but that may mean a lot of chunks
+                 * would mean thousands if not millions of chunks with a small size.
+                 * Chunks are at least 1 MB (1024x1024), but for larger files, we need to scale this so chunks are larger
+                 */
+
+                var chunkLengthMinimum = Math.Max(1024 * 1024, (int)Math.Pow(10, Math.Floor(Math.Log10(fileSizeBytes)) - 2));
+                var chunkLengthMaximum = Math.Max(1024 * 1024 * 10, (int)Math.Pow(10, Math.Floor(Math.Log10(fileSizeBytes)) - 1));
+
+                var chunkLength = chunkSize ?? random.Next(chunkLengthMinimum, chunkLengthMaximum);
                 if (fileSizeBytes - chunkElapsed < chunkLength)
                 {
                     // Last chunk
@@ -113,9 +123,9 @@
                         chunkLength -= chunkLength % 128;
                 }
 
-                yield return chunkLength;
-                
                 chunkElapsed += chunkLength;
+
+                yield return chunkLength;
             }
             while (chunkElapsed < fileSizeBytes);
         }
