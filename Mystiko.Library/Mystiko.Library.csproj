@@ -78,6 +78,8 @@
     <Compile Include="Net\Messages\NodeAnnounce.cs" />
     <Compile Include="Net\Messages\NodeHello.cs" />
     <Compile Include="Net\Server.cs" />
+    <Compile Include="Net\ServerNodeIdentity.cs" />
+    <Compile Include="Net\ServerNodeIdentityAndKey.cs" />
     <Compile Include="Net\TcpClientChannel.cs" />
     <Compile Include="Net\TcpServerChannel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

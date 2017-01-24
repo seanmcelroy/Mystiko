@@ -1,5 +1,6 @@
 ﻿namespace Mystiko.Library.Tests.Net
 {
+    using System;
     using System.Dynamic;
     using System.Net;
     using System.Threading.Tasks;
@@ -11,43 +12,48 @@
     [TestClass]
     public class ServerUnit
     {
-        /// <summary>
-        /// The server instance for unit testing
-        /// </summary>
-        private Server server1;
+        private Tuple<ServerNodeIdentity, byte[]> serverIdentity;
 
-        private Server server2;
 
         [TestInitialize]
         public void Initialize()
         {
-            this.server1 = new Server(() => new TcpServerChannel(IPAddress.Any, 5091));
-            this.server2 = new Server(() => new TcpServerChannel(IPAddress.Any, 5092));
+            this.serverIdentity = ServerNodeIdentity.Generate(1);
         }
 
         [TestMethod]
         public async Task Start()
         {
-            Assert.IsNotNull(this.server1);
-            await this.server1.StartAsync();
+            using (var server1 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5091)))
+            {
+                Assert.IsNotNull(server1);
+                await server1.StartAsync();
 
-            System.Threading.Thread.Sleep(3000);
+                System.Threading.Thread.Sleep(3000);
+            }
         }
 
         [TestMethod]
         public async Task ConnectToPeerAsync()
         {
-            Assert.IsNotNull(this.server1);
-            await this.server1.StartAsync();
-            Assert.IsNotNull(this.server2);
-            await this.server2.StartAsync();
+            using (var server1 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5091)))
+            {
+                Assert.IsNotNull(server1);
+                await server1.StartAsync();
 
-            dynamic addressInformation = new ExpandoObject();
-            addressInformation.address = IPAddress.Loopback;
-            addressInformation.port = 5092;
+                using (var server2 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5092)))
+                {
+                    Assert.IsNotNull(server2);
+                    await server2.StartAsync();
 
-            await this.server1.ConnectToPeerAsync(addressInformation);
-            System.Threading.Thread.Sleep(3000);
+                    dynamic addressInformation = new ExpandoObject();
+                    addressInformation.address = IPAddress.Loopback;
+                    addressInformation.port = 5092;
+
+                    await server1.ConnectToPeerAsync(addressInformation);
+                    System.Threading.Thread.Sleep(3000);
+                }
+            }
         }
     }
 }

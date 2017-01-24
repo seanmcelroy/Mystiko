@@ -12,7 +12,6 @@ namespace Mystiko.Net
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Net;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
@@ -32,6 +31,7 @@ namespace Mystiko.Net
         /// </summary>
         private const int BufferSize = 1048576;
 
+        [NotNull]
         private readonly TcpClient _client;
 
         private Task _receiveTask;
@@ -48,13 +48,21 @@ namespace Mystiko.Net
         [NotNull]
         private List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
 
-        public TcpClientChannel(TcpClient client, CancellationToken serverCancellationToken)
+        public TcpClientChannel([NotNull] ServerNodeIdentity serverIdentity, [NotNull] TcpClient client, CancellationToken serverCancellationToken)
         {
+            if (serverIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(serverIdentity));
+            }
+
             if (client == null)
+            {
                 throw new ArgumentNullException(nameof(client));
+            }
 
             this._client = client;
 
+            // Setup receiver task
             this._receiveTask = new Task(async () =>
             {
                 var stream = this._client.GetStream();
@@ -81,6 +89,15 @@ namespace Mystiko.Net
             });
 
             this._receiveTask.Start();
+
+            // We just started.  Send the hello announcement
+            this.Send(new NodeHello
+                          {
+                              DateEpoch = serverIdentity.DateEpoch,
+                              Nonce = serverIdentity.Nonce,
+                              PublicKeyXBase64 = serverIdentity.PublicKeyXBase64,
+                              PublicKeyYBase64 = serverIdentity.PublicKeyYBase64
+                          });
         }
 
         /// <inheritdoc />
@@ -97,7 +114,12 @@ namespace Mystiko.Net
         /// <inheritdoc />
         public void Send(IMessage message)
         {
-            throw new NotImplementedException();
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            this._client.Client.Send(message.ToWire());
         }
     }
 }

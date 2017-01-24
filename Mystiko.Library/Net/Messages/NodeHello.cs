@@ -25,16 +25,50 @@ namespace Mystiko.Net.Messages
         public uint DateEpoch { get; set; }
 
         /// <summary>
-        /// Gets or sets the public key of the node
+        /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
         [NotNull]
-        public string PublicKeyXBase64 { get; set; }
+        public byte[] PublicKeyX { get; set; }
 
         /// <summary>
-        /// Gets or sets the public key of the node
+        /// Gets or sets the base-64 encoded value of the public key X-value for this identity
         /// </summary>
         [NotNull]
-        public string PublicKeyYBase64 { get; set; }
+        public string PublicKeyXBase64
+        {
+            get
+            {
+                return Convert.ToBase64String(this.PublicKeyX);
+            }
+
+            set
+            {
+                this.PublicKeyX = Convert.FromBase64String(value);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the value of the public key Y-value for this identity
+        /// </summary>
+        [NotNull]
+        public byte[] PublicKeyY { get; set; }
+
+        /// <summary>
+        /// Gets or sets the base-64 encoded value of the public key Y-value for this identity
+        /// </summary>
+        [NotNull]
+        public string PublicKeyYBase64
+        {
+            get
+            {
+                return Convert.ToBase64String(this.PublicKeyY);
+            }
+
+            set
+            {
+                this.PublicKeyY = Convert.FromBase64String(value);
+            }
+        }
 
         /// <summary>
         /// Gets or sets the nonce applied to the epoch and public keys of the node, proving
@@ -43,7 +77,7 @@ namespace Mystiko.Net.Messages
         public long Nonce { get; set; }
 
         /// <inheritdoc />
-        public string ToPayload()
+        public byte[] ToWire()
         {
             using (var ms = new MemoryStream())
             using (var bw = new BinaryWriter(ms))
@@ -53,19 +87,19 @@ namespace Mystiko.Net.Messages
                 bw.Write(this.PublicKeyYBase64);
                 bw.Write(this.Nonce);
 
-                return Convert.ToBase64String(ms.ToArray());
+                return ms.ToArray();
             }
         }
 
         /// <inheritdoc />
-        public void FromPayload(string payload)
+        public void FromWire(byte[] payload)
         {
-            if (string.IsNullOrWhiteSpace(payload))
+            if (payload == null)
             {
                 throw new ArgumentNullException(nameof(payload));
             }
 
-            using (var ms = new MemoryStream(Convert.FromBase64String(payload)))
+            using (var ms = new MemoryStream(payload))
             using (var br = new BinaryReader(ms))
             {
                 this.DateEpoch = br.ReadUInt32();

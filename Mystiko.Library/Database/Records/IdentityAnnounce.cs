@@ -21,13 +21,6 @@ namespace Mystiko.Database.Records
 
     using JetBrains.Annotations;
 
-    using Mystiko.Cryptography;
-
-    using Org.BouncyCastle.Asn1.Sec;
-    using Org.BouncyCastle.Crypto.Generators;
-    using Org.BouncyCastle.Crypto.Parameters;
-    using Org.BouncyCastle.Security;
-
     /// <summary>
     /// A record that announces a new identity on the network.  Identities may or may not ever
     /// be associated to a single or identifyable group of humans, organizations, or nodes;
@@ -44,7 +37,7 @@ namespace Mystiko.Database.Records
         public uint DateEpoch { get; set; }
 
         /// <summary>
-        /// Gets or sets the base-64 encoded value of the public key X-value for this identity
+        /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
         [NotNull]
         public byte[] PublicKeyX { get; set; }
@@ -67,7 +60,7 @@ namespace Mystiko.Database.Records
         }
 
         /// <summary>
-        /// Gets or sets the base-64 encoded value of the public key Y-value for this identity
+        /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
         public byte[] PublicKeyY { get; set; }
@@ -107,53 +100,16 @@ namespace Mystiko.Database.Records
         // ReSharper disable once StyleCop.SA1650
         public static Tuple<IdentityAnnounce, byte[]> Generate(int targetDifficulty)
         {
-            var ret = new IdentityAnnounce
-            {
-                DateEpoch = Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds)
-            };
-
-            // Elliptic Curve
-            var ec = SecNamedCurves.GetByName("secp256k1");
-            Debug.Assert(ec != null, "ec != null");
-            var domainParams = new ECDomainParameters(ec.Curve, ec.G, ec.N, ec.H);
-            var random = new SecureRandom();
-
-            var keyGen = new ECKeyPairGenerator();
-            var keyParams = new ECKeyGenerationParameters(domainParams, random);
-            keyGen.Init(keyParams);
-            var keyPair = keyGen.GenerateKeyPair();
-
-            Debug.Assert(keyPair != null, "keyPair != null");
-            var privateKeyParams = keyPair.Private as ECPrivateKeyParameters;
-            var publicKeyParams = keyPair.Public as ECPublicKeyParameters;
-
-            // Get Private Key
-            Debug.Assert(privateKeyParams != null, "privateKeyParams != null");
-            var privD = privateKeyParams.D;
-            Debug.Assert(privD != null, "privD != null");
-
-            Debug.Assert(publicKeyParams != null, "publicKeyParams != null");
-            var qa = ec.G.Multiply(privD);
-            Debug.Assert(qa != null, "qa != null");
-            Debug.Assert(qa.X != null, "qa.X != null");
-            ret.PublicKeyX = qa.X.ToBigInteger().ToByteArrayUnsigned();
-            Debug.Assert(qa.Y != null, "qa.Y != null");
-            ret.PublicKeyY = qa.Y.ToBigInteger().ToByteArrayUnsigned();
-
-            // Calculate nonce for public key
-            byte[] identityBytes;
-            using (var ms = new MemoryStream())
-            using (var bw = new BinaryWriter(ms))
-            {
-                bw.Write(ret.DateEpoch);
-                bw.Write(ret.PublicKeyX);
-                bw.Write(ret.PublicKeyY);
-                bw.Write(0L); // Placeholder 8 bytes
-                identityBytes = ms.ToArray();
-            }
-            ret.Nonce = HashUtility.HashForZeroCount(identityBytes, targetDifficulty);
-
-            return new Tuple<IdentityAnnounce, byte[]>(ret, privD.ToByteArray());
+            var identity = Net.ServerNodeIdentity.Generate(targetDifficulty);
+            return new Tuple<IdentityAnnounce, byte[]>(
+                new IdentityAnnounce
+                {
+                    DateEpoch = identity.Item1.DateEpoch,
+                    Nonce = identity.Item1.Nonce,
+                    PublicKeyX = identity.Item1.PublicKeyX,
+                    PublicKeyY = identity.Item1.PublicKeyY
+                }, 
+                identity.Item2);
         }
 
         /// <inheritdoc />

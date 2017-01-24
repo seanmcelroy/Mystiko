@@ -27,6 +27,9 @@ namespace Mystiko.Net
     public class TcpServerChannel : IServerChannel, IDisposable
     {
         [NotNull]
+        private readonly ServerNodeIdentity _serverIdentity;
+
+        [NotNull]
         private readonly TcpListener _listener;
 
         [NotNull]
@@ -36,10 +39,15 @@ namespace Mystiko.Net
         private Task _acceptTask;
 
         private bool _disposed;
-        private bool disposing;
 
-        public TcpServerChannel(IPAddress listenAddress = null, int port = 5091)
+        public TcpServerChannel([NotNull] ServerNodeIdentity serverIdentity, [CanBeNull] IPAddress listenAddress = null, int port = 5091)
         {
+            if (serverIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(serverIdentity));
+            }
+
+            this._serverIdentity = serverIdentity;
             this._listener = new TcpListener(listenAddress ?? IPAddress.Any, port);
         }
 
@@ -57,7 +65,7 @@ namespace Mystiko.Net
                     Debug.Assert(tcpClient != null, "tcpClient != null");
                     Console.WriteLine($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
 
-                    this._clients.Add(new TcpClientChannel(tcpClient, cancellationToken));
+                    this._clients.Add(new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken));
                 }
             });
 
@@ -78,7 +86,7 @@ namespace Mystiko.Net
 
             var tcpClient = new TcpClient();
             await tcpClient.ConnectAsync(address, port);
-            return new TcpClientChannel(tcpClient, cancellationToken);
+            return new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken);
         }
 
         /// <summary>
@@ -88,12 +96,9 @@ namespace Mystiko.Net
         {
             if (!this._disposed)
             {
-                if (this.disposing)
-                {
-                    // Dispose managed resources.
-                    this._listener?.Stop();
-                    this._acceptTask?.Dispose();
-                }
+                // Dispose managed resources.
+                this._listener?.Stop();
+                this._acceptTask?.Dispose();
 
                 // There are no unmanaged resources to release, but
                 // if we add them, they need to be released here.

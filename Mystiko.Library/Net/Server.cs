@@ -2,14 +2,21 @@
 {
     using System;
     using System.Diagnostics;
+    using System.IO;
+    using System.IO.IsolatedStorage;
     using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
+    using Newtonsoft.Json;
+
     public class Server : IDisposable
     {
+        [NotNull]
+        private readonly ServerNodeIdentityAndKey _serverNodeIdentityAndKey;
+
         [NotNull]
         private readonly IServerChannel _serverChannel;
 
@@ -17,11 +24,47 @@
         private readonly CancellationTokenSource _acceptCancellationTokenSource = new CancellationTokenSource();
 
         private bool _disposed;
-        private bool disposing;
 
-        public Server([NotNull] Func<IServerChannel> serverChannelFactory = null)
+        public Server(
+            [CanBeNull] Func<Tuple<ServerNodeIdentity, byte[]>> serverNodeIdentityFactory = null,
+            [CanBeNull] Func<IServerChannel> serverChannelFactory = null)
         {
-            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(IPAddress.Any, 5091))).Invoke();
+            // Load or create node identity
+            using (var isoStore = IsolatedStorageFile.GetStore(IsolatedStorageScope.User | IsolatedStorageScope.Assembly, null, null))
+            {
+                if (!isoStore.FileExists("node.identity"))
+                {
+                    // Create new node identity
+                    var newIdentityAndKey = (serverNodeIdentityFactory ?? (() => ServerNodeIdentity.Generate(3))).Invoke();
+
+                    Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
+                    this._serverNodeIdentityAndKey = new ServerNodeIdentityAndKey
+                                                       {
+                                                           DateEpoch = newIdentityAndKey.Item1.DateEpoch,
+                                                           Nonce = newIdentityAndKey.Item1.Nonce,
+                                                           PrivateKey = newIdentityAndKey.Item2,
+                                                           PublicKeyX = newIdentityAndKey.Item1.PublicKeyX,
+                                                           PublicKeyY = newIdentityAndKey.Item1.PublicKeyY,
+                                                       };
+
+                    using (var isoStream = new IsolatedStorageFileStream("node.identity", FileMode.CreateNew, isoStore))
+                    using (var sw = new StreamWriter(isoStream))
+                    {
+                        sw.Write(JsonConvert.SerializeObject(this._serverNodeIdentityAndKey));
+                        sw.Close();
+                    }
+                }
+
+                using (var isoStream = new IsolatedStorageFileStream("node.identity", FileMode.Open, isoStore))
+                using (var sr = new StreamReader(isoStream))
+                {
+                    this._serverNodeIdentityAndKey = JsonConvert.DeserializeObject<ServerNodeIdentityAndKey>(sr.ReadToEnd());
+                    isoStream.Close();
+                }
+            }
+
+            // Create network channel
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any, 5091))).Invoke();
             if (channel == null)
             {
                 throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));
@@ -74,14 +117,11 @@
         {
             if (!this._disposed)
             {
-                if (this.disposing)
+                // Dispose managed resources.
+                this._acceptCancellationTokenSource.Cancel();
+                if (this._serverChannel is IDisposable)
                 {
-                    // Dispose managed resources.
-                    this._acceptCancellationTokenSource.Cancel();
-                    if (this._serverChannel is IDisposable)
-                    {
-                        ((IDisposable)this._serverChannel).Dispose();
-                    }
+                    ((IDisposable)this._serverChannel).Dispose();
                 }
 
                 // There are no unmanaged resources to release, but
