@@ -1,6 +1,6 @@
-= Mystiko =
+# Mystiko
 
-== Intro ==
+## Intro
 
 Mystiko is Greek for 'secret'.  Mystiko is a set of utilities aimed at keeping
 information secure and confidential, making information available
@@ -13,9 +13,9 @@ encrypted containers in TrueCrypt/VeraCrypt, file splitting and joining
 functions of HJSplit, and at some point in the future, file lookup and
 distribution functionality similar to BitTorrent or Freenet.
 
-== Programs ==
+## Programs
 
-=== MPM ===
+### MPM
 
 mpm - Mystiko Package Manager
 
@@ -25,32 +25,22 @@ This program encrypts files and splits them into separate encrypted parts with
 a manifest file.  To recombine the file, all output artifacts, including the
 manifest file are required.  Usage parameters are as follows:
 
-  -d, --decrypt         OPERATION: Decrypts a Mystiko split file set
+Switch|Function
+------|--------
+`-d`, `--decrypt`      | OPERATION: Decrypts a Mystiko split file set
+`-e, --encrypt`        | OPERATION: Encrypts a file into split files and a manifest
+`-h, --hash`           | OPERATION: Prepares a manifest, but does not create split files
+`-c, --createFromHash` | OPERATION: Creates split files from a prepared manifest
+`-s, --source`         | The source file to encrypt or decrypt
+`-m, --manifest`       | The manifest file to use to decrypt or createFromHash
+`-f, --force`          | Overwrite files if required
+`-o, --output`         | If used with the --decrypt operation, specifies the path for the unpackaged file
+`-p, --pause`          | Pauses at the end of the operation
+`-v, --verbose`        | Write verbose output
+`-y, --verify`         | Perform extra verification checks on internal operations
+`--help`               | Display this help screen.
 
-  -e, --encrypt         OPERATION: Encrypts a file into split files and a manifest
-
-  -h, --hash            OPERATION: Prepares a manifest, but does not create split files
-
-  -c, --createFromHash  OPERATION: Creates split files from a prepared manifest
-
-  -s, --source          The source file to encrypt or decrypt
-
-  -m, --manifest        The manifest file to use to decrypt or createFromHash
-
-  -f, --force           Overwrite files if required
-
-  -o, --output          If used with the --decrypt operation, specifies the path for
-                        the unpackaged file
-
-  -p, --pause           Pauses at the end of the operation
-
-  -v, --verbose         Write verbose output
-
-  -y, --verify          Perform extra verification checks on internal operations
-
-  --help                Display this help screen.
-
-==== How it works ====
+#### How it works
 
 MPM splits a file into multiple chunks and performs a SHA-512 hash on each
 part.  The first 32 bytes of each chunk's hash are XOR'ed together to create
@@ -71,49 +61,49 @@ of all encrypted parts.
 The size of encrypted blocks are random so as to obscure which block is the
 final one.  This behavior can be overridden with the '--size' parameter.
 
-==== Example usage =====
+#### Example usage
 
-To encrypt a file into split parts and a manifest
+To encrypt a file into split parts and a manifest:
 
-mpm.exe -e -s "C:\Downloads\secret.file" -p -v -y
-
-
-To decrypt a file from its split parts and manifest
-
-mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -p -v -y
+`mpm.exe -e -s "C:\Downloads\secret.file" -p -v -y`
 
 
-To decrypt a file from its split parts and manifest to a specific path
+To decrypt a file from its split parts and manifest:
 
-mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -o "C:\Downloads\secret.file.rebuilt" -p -v -y
+`mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -p -v -y`
+
+
+To decrypt a file from its split parts and manifest to a specific path:
+
+`mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -o "C:\Downloads\secret.file.rebuilt" -p -v -y`
 
 
 To create a special 'local' manifest file of a file without actually creating the encrypted split files:
 
-mpm.exe -h -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -p -v -y
+`mpm.exe -h -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -p -v -y`
 
 
 To create a split parts from a pre-calculated 'local' manifest:
 
-mpm.exe -c -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -p -v -y
+`mpm.exe -c -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -p -v -y`
 
 
 
-==== Known issues / coming improvmeents ====
+#### Known issues / coming improvmeents
 
-Issue: It is possible to discern when any block is associated with the same
+**Issue:** It is possible to discern when any block is associated with the same
 manifest file by comparing the hash blocks within the manifest, which could be
 incriminating depending on the content and how oppresive the governing regime
 of the user may be.
 
-Response: This will soon be resolved by a coming feature that will XOR the
+**Response:** This will soon be resolved by a coming feature that will XOR the
 hash blocks in the manifest file with the last 32 bytes of all other encrypted
 pieces.  This means that it requires all pieces plus the manifest file to
 verify the association of a block to a manifest file.
 
 
-Issue: It is possible to discern, by default operation, the name of a file that
+**Issue:** It is possible to discern, by default operation, the name of a file that
 blocks represent.
 
-Response: This will soon be resolved by removing the base file name from
+**Response:** This will soon be resolved by removing the base file name from
 generated blocks.
