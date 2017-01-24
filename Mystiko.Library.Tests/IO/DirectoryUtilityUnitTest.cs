@@ -32,7 +32,7 @@ namespace Mystiko.Library.Tests.IO
                 Assert.Inconclusive($"Unable to find folder {localDirectory}");
             }
 
-            var localManifest = await DirectoryUtility.PreHashDirectory(localDirectory);
+            var localManifest = await DirectoryUtility.PreHashDirectory(localDirectory, verbose: true);
             Assert.IsNotNull(localManifest);
         }
     }

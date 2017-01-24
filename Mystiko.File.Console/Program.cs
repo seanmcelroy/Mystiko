@@ -1,9 +1,21 @@
-﻿namespace Mystiko.File.Console
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Program.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   A basic command line utility for executing methods of the Mystiko library
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.File.Console
 {
+    using System;
     using System.IO;
     using System.Threading.Tasks;
 
     using IO;
+
+    using JetBrains.Annotations;
 
     using Newtonsoft.Json;
 
@@ -15,64 +27,80 @@
     // ReSharper disable once StyleCop.SA1650
     public static class Program
     {
+        /// <summary>
+        /// Console program entry point
+        /// </summary>
+        /// <param name="args">Command line arguments</param>
         public static void Main(string[] args)
         {
             var options = new CommandLineOptions();
             if (!CommandLine.Parser.Default.ParseArguments(args, options))
             {
-                System.Console.WriteLine(options.GetUsage());
+                Console.WriteLine(options.GetUsage());
                 if (options.Pause)
-                    System.Console.ReadLine();
+                    Console.ReadLine();
                 return;
             }
 
-            if (!string.IsNullOrEmpty(options.EncryptFile))
+            if (options.Encrypt)
             {
                 Encrypt(options);
-                return;
+                if (options.Pause)
+                    Console.ReadLine();
             }
-
-            if (!string.IsNullOrEmpty(options.DecryptFile))
+            else if (options.Decrypt)
             {
                 Decrypt(options);
-                return;
+                if (options.Pause)
+                    Console.ReadLine();
             }
-
-            if (!string.IsNullOrEmpty(options.PrehashPath))
+            else if (options.Hash)
             {
                 Prehash(options);
-                return;
-            }
-
-            // No operation specified
-            {
-                System.Console.WriteLine("No operation specified.  Use the --encrypt or --decrypt operation parameter\r\n");
-                System.Console.WriteLine(options.GetUsage());
                 if (options.Pause)
-                    System.Console.ReadLine();
+                    Console.ReadLine();
+            }
+            else if (options.CreateFromHash)
+            {
+                ChunkFromPrehash(options);
+                if (options.Pause)
+                    Console.ReadLine();
+            }
+            else
+            {
+                // No operation specified
+                Console.WriteLine("No operation specified.  Use the --encrypt or --decrypt operation parameter\r\n");
+                Console.WriteLine(options.GetUsage());
+                if (options.Pause)
+                    Console.ReadLine();
             }
         }
 
-        private static void Encrypt(CommandLineOptions options)
+        /// <summary>
+        /// Encrypts a file into a manifest and encrypted split files
+        /// </summary>
+        /// <param name="options">The command line options to configure the encryption process</param>
+        private static void Encrypt([NotNull] CommandLineOptions options)
         {
-            System.Console.WriteLine("Encrypting {0}... ", options.EncryptFile);
-
-            if (!File.Exists(options.EncryptFile))
+            if (options == null)
             {
-                System.Console.WriteLine("Unable to locate file: {0}", options.EncryptFile);
-                if (options.Pause)
-                    System.Console.ReadLine();
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (!File.Exists(options.SourcePath))
+            {
+                Console.WriteLine("Unable to locate file: {0}", options.SourcePath);
                 return;
             }
 
-            var encryptFile = new FileInfo(options.EncryptFile);
+            var encryptFile = new FileInfo(options.SourcePath);
             if (encryptFile.Directory == null || string.IsNullOrWhiteSpace(encryptFile.DirectoryName))
             {
-                System.Console.WriteLine("Unable to locate parent directory of file: {0}", options.EncryptFile);
-                if (options.Pause)
-                    System.Console.ReadLine();
+                Console.WriteLine("Unable to locate parent directory of file: {0}", options.SourcePath);
                 return;
             }
+
+            Console.WriteLine("Encrypting {0}... ", options.SourcePath);
 
             Task.Run(async () =>
             {
@@ -83,9 +111,7 @@
                 {
                     if (!options.Force)
                     {
-                        System.Console.WriteLine("Manifest file already exists: {0}", manifestFile.FullName);
-                        if (options.Pause)
-                            System.Console.ReadLine();
+                        Console.WriteLine("Manifest file already exists: {0}", manifestFile.FullName);
                         return;
                     }
 
@@ -94,60 +120,68 @@
 
                 using (var sw = new StreamWriter(manifestFile.FullName))
                 {
-                    await sw.WriteAsync(JsonConvert.SerializeObject(chunkResult));
+                    var json = JsonConvert.SerializeObject(chunkResult);
+                    if (json != null)
+                    {
+                        await sw.WriteAsync(json);
+                    }
+
                     sw.Close();
                 }
             }).Wait();
 
-            System.Console.WriteLine("Encryption complete.");
-            if (options.Pause)
-                System.Console.ReadLine();
+            Console.WriteLine("Encryption complete.");
         }
 
-        private static void Decrypt(CommandLineOptions options)
+        /// <summary>
+        /// Decrypts a file from a manifest and split files
+        /// </summary>
+        /// <param name="options">Command line options used for decrypting a file from its manifest and split files</param>
+        private static void Decrypt([NotNull] CommandLineOptions options)
         {
-            var output = string.IsNullOrWhiteSpace(options.OutputFile) ? options.DecryptFile.Replace(".mystiko", string.Empty) + ".decrypted" : options.OutputFile;
-
-            if (!File.Exists(options.DecryptFile))
+            if (options == null)
             {
-                System.Console.WriteLine("Unable to locate file: {0}", options.DecryptFile);
-                if (options.Pause)
-                    System.Console.ReadLine();
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (!File.Exists(options.ManifestFile))
+            {
+                Console.WriteLine("Unable to locate file: {0}", options.ManifestFile);
                 return;
             }
+
+            var output = string.IsNullOrWhiteSpace(options.OutputFile)
+                ? (File.Exists(options.ManifestFile.Replace(".mystiko", string.Empty)) 
+                    ? options.ManifestFile.Replace(".mystiko", string.Empty) + ".decrypted" 
+                    : options.ManifestFile.Replace(".mystiko", string.Empty))
+                : options.OutputFile;
 
             if (File.Exists(output))
             {
                 if (!options.Force)
                 {
-                    System.Console.WriteLine("Ouput file already exists: {0}", output);
-                    if (options.Pause)
-                        System.Console.ReadLine();
+                    Console.WriteLine("Ouput file already exists: {0}", output);
                     return;
                 }
 
                 File.Delete(output);
-                System.Console.WriteLine("Deleted output file that already existed: {0}", output);
+                Console.WriteLine("Deleted output file that already existed: {0}", output);
             }
 
             var unchunkResult = false;
             Task.Run(
                 async () =>
                 {
-                    unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(new FileInfo(options.DecryptFile), new FileInfo(output), options.Force);
+                    unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(new FileInfo(options.ManifestFile), new FileInfo(output), options.Force);
                 }).Wait();
 
             if (unchunkResult)
             {
-                System.Console.WriteLine("Decryption complete: {0}", output);
-                if (options.Pause)
-                    System.Console.ReadLine();
+                Console.WriteLine("Decryption complete: {0}", output);
             }
             else
             {
-                System.Console.WriteLine("Decryption failed");
-                if (options.Pause)
-                    System.Console.ReadLine();
+                Console.WriteLine("Decryption failed");
             }
         }
 
@@ -155,35 +189,70 @@
         /// Pre-hashes a directory without actually creating encrypted split files
         /// </summary>
         /// <param name="options">Command line options used for identifying and pre-hashing the directory</param>
-        private static void Prehash(CommandLineOptions options)
+        private static void Prehash([NotNull] CommandLineOptions options)
         {
-            System.Console.WriteLine("Prehash {0}... ", options.PrehashPath);
-
-            if (!Directory.Exists(options.PrehashPath))
+            if (options == null)
             {
-                System.Console.WriteLine("Unable to locate directory: {0}", options.PrehashPath);
-                if (options.Pause)
-                    System.Console.ReadLine();
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (string.IsNullOrWhiteSpace(options.SourcePath))
+            {
+                Console.WriteLine("No source path was specified for the pre-hash operation");
                 return;
             }
 
-            if (Directory.Exists(options.PrehashPath))
+            Console.WriteLine("Prehash {0}... ", options.SourcePath);
+
+            if (File.Exists(options.SourcePath))
+            {
+                Task.Run(async () =>
+                {
+                    var localManifest = await DirectoryUtility.PreHashDirectory(
+                        options.SourcePath, 
+                        s => { },
+                        s => Console.WriteLine($"\tFile: {s}"),
+                        options.Verbose);
+                    var manifestFile = new FileInfo(options.ManifestFile ?? options.SourcePath + ".mystiko");
+
+                    if (manifestFile.Exists)
+                    {
+                        if (!options.Force)
+                        {
+                            Console.WriteLine("File manifest already exists: {0}", manifestFile.FullName);
+                            return;
+                        }
+
+                        manifestFile.Delete();
+                    }
+
+                    using (var sw = new StreamWriter(manifestFile.FullName))
+                    {
+                        await sw.WriteAsync(JsonConvert.SerializeObject(localManifest));
+                        sw.Close();
+                    }
+                }).Wait();
+
+                Console.WriteLine("File hashing complete.");
+                return;
+            }
+
+            if (Directory.Exists(options.SourcePath))
             {
                 Task.Run(async () =>
                     {
                         var localManifest = await DirectoryUtility.PreHashDirectory(
-                            options.PrehashPath,
-                            s => System.Console.WriteLine($"Directory: {s}"),
-                            s => System.Console.WriteLine($"\tFile: {s}"));
-                        var manifestFile = new FileInfo(Path.Combine(options.PrehashPath, "directory.mystiko"));
+                            options.SourcePath,
+                            s => Console.WriteLine($"Directory: {s}"),
+                            s => Console.WriteLine($"\tFile: {s}"),
+                            options.Verbose);
+                        var manifestFile = new FileInfo(Path.Combine(options.SourcePath, "directory.mystiko"));
 
                         if (manifestFile.Exists)
                         {
                             if (!options.Force)
                             {
-                                System.Console.WriteLine("Directory manifest file already exists: {0}", manifestFile.FullName);
-                                if (options.Pause)
-                                    System.Console.ReadLine();
+                                Console.WriteLine("Directory manifest file already exists: {0}", manifestFile.FullName);
                                 return;
                             }
 
@@ -197,10 +266,77 @@
                         }
                     }).Wait();
 
-                System.Console.WriteLine("Directory hashing complete.");
-                if (options.Pause)
-                    System.Console.ReadLine();
+                Console.WriteLine("Directory hashing complete.");
+
+                return;
             }
+
+            Console.WriteLine("Unable to locate directory: {0}", options.SourcePath);
+        }
+
+        private static void ChunkFromPrehash([NotNull] CommandLineOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (string.IsNullOrWhiteSpace(options.SourcePath))
+            {
+                Console.WriteLine("No source path was specified for the chunking operation");
+                return;
+            }
+
+            if (!File.Exists(options.SourcePath))
+            {
+                Console.WriteLine("Unable to locate file: {0}", options.SourcePath);
+                return;
+            }
+
+            var sourceFile = new FileInfo(options.SourcePath);
+            if (sourceFile.Directory == null || string.IsNullOrWhiteSpace(sourceFile.DirectoryName))
+            {
+                Console.WriteLine("Unable to locate parent directory of file: {0}", options.SourcePath);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(options.ManifestFile))
+            {
+                Console.WriteLine("No manifest file was specified for the chunking operation");
+                return;
+            }
+
+            var manifestFile = new FileInfo(options.ManifestFile);
+            if (manifestFile.Directory == null || string.IsNullOrWhiteSpace(manifestFile.DirectoryName))
+            {
+                Console.WriteLine("Unable to locate parent directory of file: {0}", options.ManifestFile);
+                return;
+            }
+
+            if (!manifestFile.Exists)
+            {
+                Console.WriteLine("Manifest file not found: {0}", manifestFile.FullName);
+                return;
+            }
+
+            Console.WriteLine("Chunking {0}... ", options.ManifestFile);
+
+            Task.Run(async () =>
+            {
+                var chunkResult = await FileUtility.ChunkFileViaOutputDirectoryFromPreHash(sourceFile, manifestFile, sourceFile.Directory.FullName, options.Force, options.Verbose, options.Verify);
+                
+                using (var sw = new StreamWriter(manifestFile.FullName))
+                {
+                    var json = JsonConvert.SerializeObject(chunkResult);
+                    if (json != null)
+                    {
+                        await sw.WriteAsync(json);
+                    }
+
+                    sw.Close();
+                }
+            }).Wait();
+
         }
     }
 }

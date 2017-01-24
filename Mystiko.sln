@@ -12,8 +12,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{36489263-D8F8-439D-BFA0-AE656A74AC44}"
 	ProjectSection(SolutionItems) = preProject
 		LICENSE.txt = LICENSE.txt
-		PROTOCOL.txt = PROTOCOL.txt
-		README.txt = README.txt
+		PROTOCOL.md = PROTOCOL.md
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Library.Tests", "Mystiko.Library.Tests\Mystiko.Library.Tests.csproj", "{5FAC7682-CB0A-4557-8DBD-137A019B90A4}"

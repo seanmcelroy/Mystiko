@@ -1,4 +1,16 @@
-﻿namespace Mystiko.IO
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="LocalShareFileManifest.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   A local share file manifest is an entry about a file that is locally available,
+//   but may or may not be in the Mystiko format.  This metadata stub would be pre-calculated
+//   ahead of time for the purposes of allowing network publication or discovery of this asset,
+//   without needing to encrypt, split and store a copy of all data.
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.IO
 {
     using JetBrains.Annotations;
 
@@ -19,21 +31,25 @@
         /// <summary>
         /// Gets or sets the file manifest shared with remote hosts
         /// </summary>
+        [UsedImplicitly]
         public FileManifest FileManifest { get; set; }
 
         /// <summary>
         /// Gets or sets the path of the local file
         /// </summary>
+        [UsedImplicitly]
         public string LocalPath { get; set; }
 
         /// <summary>
         /// Gets or sets the size of the local file in bytes
         /// </summary>
+        [UsedImplicitly]
         public long SizeBytes { get; set; }
 
         /// <summary>
         /// Gets or sets the SHA512 hash of the content of the local file
         /// </summary>
+        [UsedImplicitly]
         public string Hash { get; set; }
 
         /// <summary>
@@ -41,6 +57,7 @@
         /// These are not part of the <see cref="FileManifest"/>, since observers should
         /// not know sizes of chunks ahead of time so as not to fingerprint files
         /// </summary>
+        [UsedImplicitly]
         public string[] BlockLengths { get; set; }
     }
 }

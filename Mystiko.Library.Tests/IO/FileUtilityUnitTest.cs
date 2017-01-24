@@ -10,11 +10,10 @@
 namespace Mystiko.Library.Tests
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
     using System.Security.Cryptography;
     using System.Threading.Tasks;
-
-    using IO;
 
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -56,6 +55,23 @@ namespace Mystiko.Library.Tests
             await FileUtility.ChunkFileViaOutputDirectory(encryptFile, null, true, true, true);
         }
 
+        [TestMethod, Ignore]
+        public async Task ChunkFileMetadataOnly_LargeFile()
+        {
+            // Encrypt
+            var largeFilePath = @"C:\Users\Smcelroy\Downloads\en_windows_10_multiple_editions_x64_dvd_6846432.iso";
+            if (!File.Exists(largeFilePath))
+            {
+                Assert.Inconclusive($"Unable to find test file {largeFilePath}");
+            }
+
+            var encryptFile = new FileInfo(largeFilePath);
+            Assert.IsTrue(encryptFile.Exists);
+
+            var chunkResult = await FileUtility.ChunkFileMetadataOnly(encryptFile, true);
+            Assert.IsNotNull(chunkResult);
+        }
+
         [TestMethod]
         public async Task EncryptDecryptViaFileSystem()
         {
@@ -83,6 +99,7 @@ namespace Mystiko.Library.Tests
             using (var originalStream = encryptFile.OpenRead())
             using (var rebuiltStream = rebuiltFile.OpenRead())
             {
+                Debug.Assert(sha != null, "sha != null");
                 var firstHash = sha.ComputeHash(originalStream);
                 var secondHash = sha.ComputeHash(rebuiltStream);
                 

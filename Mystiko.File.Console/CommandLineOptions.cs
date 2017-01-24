@@ -5,25 +5,46 @@
     using CommandLine;
     using CommandLine.Text;
 
-    class CommandLineOptions
+    /// <summary>
+    /// Command line options for the console application
+    /// </summary>
+    internal class CommandLineOptions
     {
         /// <summary>
-        /// Gets or sets the path to a manifest file to decrypt a package
+        /// Gets or sets the an options for the operation: Decrypts a Mystiko split file set
         /// </summary>
-        [Option('d', "decrypt", HelpText = "The path to a Mystiko manifest file to decrypt a package")]
-        public string DecryptFile { get; set; }
+        [Option('d', "decrypt", HelpText = "Decrypts a Mystiko split file set", MutuallyExclusiveSet = "operation")]
+        public bool Decrypt { get; set; }
 
         /// <summary>
-        /// Gets or sets the path to file to encrypt and package
+        /// Gets or sets the an options for the operation: Encrypts a file into split files and a manifest
         /// </summary>
-        [Option('e', "encrypt", HelpText = "The path to file to encrypt and package")]
-        public string EncryptFile { get; set; }
+        [Option('e', "encrypt", HelpText = "Encrypts a file into split files and a manifest", MutuallyExclusiveSet = "operation")]
+        public bool Encrypt { get; set; }
 
         /// <summary>
-        /// Gets or sets the path to pre-hash
+        /// Gets or sets the an options for the operation: Prepares a manifest, but does not create split files
         /// </summary>
-        [Option('h', "hash", HelpText = "The path to hash for a manifest output, without actually creating split encrypted files")]
-        public string PrehashPath { get; set; }
+        [Option('h', "hash", HelpText = "Prepares a manifest, but does not create split files", MutuallyExclusiveSet = "operation")]
+        public bool Hash { get; set; }
+
+        /// <summary>
+        /// Gets or sets the an options for the operation: Creates split files from a prepared manifest
+        /// </summary>
+        [Option('c', "createFromHash", HelpText = "Creates split files from a prepared manifest", MutuallyExclusiveSet = "operation")]
+        public bool CreateFromHash { get; set; }
+
+        /// <summary>
+        /// Gets or sets the source file or directory to use in an Encrypt or Hash operation
+        /// </summary>
+        [Option('s', "source", HelpText = "The source file or directory to use in an Encrypt or Hash operation")]
+        public string SourcePath { get; set; }
+
+        /// <summary>
+        /// Gets or sets the manifest file to use in a Decrypt or Hash operation
+        /// </summary>
+        [Option('m', "manifest", HelpText = "The manifest file to use in a Decrypt or Hash operation")]
+        public string ManifestFile { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether to overwrite files if required
@@ -34,7 +55,7 @@
         /// <summary>
         /// Gets or sets the path for the unpackaged file, if used with the --decrypt operation
         /// </summary>
-        [Option('o', "output", HelpText = "If used with the --decrypt operation, specifies the path for the unpackaged file")]
+        [Option('o', "output", HelpText = "The output file to use in a Decrypt operation, specifying the path for the unpackaged file")]
         public string OutputFile { get; set; }
 
         /// <summary>
@@ -46,7 +67,7 @@
         /// <summary>
         /// Gets or sets an option indicating the size of the split block files, in bytes.  If not specified, each block file will be a random size between 1 MB and 10 MB
         /// </summary>
-        [Option('s', "size", HelpText = "Size of the split block files, in bytes.  If not specified, each block file will be a random size between 1 MB and 10 MB")]
+        [Option('z', "size", HelpText = "Size of the split block files, in bytes.  If not specified, each block file will be a random size between 1 MB and 10 MB")]
         public int? Size { get; set; }
 
         /// <summary>
