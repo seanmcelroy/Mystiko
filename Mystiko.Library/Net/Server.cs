@@ -14,9 +14,16 @@
 
     public class Server : IDisposable
     {
+        /// <summary>
+        /// The identity of the server node, consisting of a date of generation, key pair, and nonce proving the date and public key
+        /// meet a target difficulty requirement.  It also includes the private key for local serialization and storage.
+        /// </summary>
         [NotNull]
         private readonly ServerNodeIdentityAndKey _serverNodeIdentityAndKey;
 
+        /// <summary>
+        /// The channel over which this server accepts connections
+        /// </summary>
         [NotNull]
         private readonly IServerChannel _serverChannel;
 
@@ -25,6 +32,11 @@
 
         private bool _disposed;
 
+        /// <summary>
+        /// Creates a new instance of a server
+        /// </summary>
+        /// <param name="serverNodeIdentityFactory">A function that returns a tuple of a <see cref="ServerNodeIdentity"/> and the private key of that identity as a byte array</param>
+        /// <param name="serverChannelFactory">A function that returns a <see cref="IServerChannel"/> for listening for incoming connections</param>
         public Server(
             [CanBeNull] Func<Tuple<ServerNodeIdentity, byte[]>> serverNodeIdentityFactory = null,
             [CanBeNull] Func<IServerChannel> serverChannelFactory = null)
@@ -55,6 +67,7 @@
                     }
                 }
 
+                // Store the newly-created identity in isolated storage so we can quickly retrieve it again
                 using (var isoStream = new IsolatedStorageFileStream("node.identity", FileMode.Open, isoStore))
                 using (var sr = new StreamReader(isoStream))
                 {
@@ -64,7 +77,7 @@
             }
 
             // Create network channel
-            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any, 5091))).Invoke();
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any, 5109))).Invoke();
             if (channel == null)
             {
                 throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));

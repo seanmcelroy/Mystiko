@@ -14,6 +14,9 @@ namespace Mystiko.Net
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
+    using System.Collections.Generic;
+    using System;
+    using System.Net;
 
     /// <summary>
     /// A channel over which a server accepts connections
@@ -42,5 +45,13 @@ namespace Mystiko.Net
         /// <returns>A task that can be awaited while the operation completes</returns>
         [NotNull, ItemNotNull]
         Task<IClientChannel> ConnectToPeerAsync([NotNull] dynamic addressInformation, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Attempts to discover peers that the server may be able to connect to
+        /// </summary>
+        /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
+        /// <returns>An enumeration of potential peer IP addresses and ports</returns>
+        [NotNull]
+        IEnumerable<Tuple<IPAddress, int>> DiscoverPotentialPeers(CancellationToken cancellationToken);
     }
 }

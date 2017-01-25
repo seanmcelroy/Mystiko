@@ -24,7 +24,7 @@
         [TestMethod]
         public async Task Start()
         {
-            using (var server1 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5091)))
+            using (var server1 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5109)))
             {
                 Assert.IsNotNull(server1);
                 await server1.StartAsync();
@@ -36,19 +36,19 @@
         [TestMethod]
         public async Task ConnectToPeerAsync()
         {
-            using (var server1 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5091)))
+            using (var server1 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5109)))
             {
                 Assert.IsNotNull(server1);
                 await server1.StartAsync();
 
-                using (var server2 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5092)))
+                using (var server2 = new Server(() => this.serverIdentity, () => new TcpServerChannel(this.serverIdentity.Item1, IPAddress.Any, 5108)))
                 {
                     Assert.IsNotNull(server2);
                     await server2.StartAsync();
 
                     dynamic addressInformation = new ExpandoObject();
                     addressInformation.address = IPAddress.Loopback;
-                    addressInformation.port = 5092;
+                    addressInformation.port = 5108;
 
                     await server1.ConnectToPeerAsync(addressInformation);
                     System.Threading.Thread.Sleep(3000);
