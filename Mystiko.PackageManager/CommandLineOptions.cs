@@ -1,4 +1,13 @@
-﻿namespace Mystiko.File.Console
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="CommandLineOptions.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   Command line options for the console application
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.PackageManager
 {
     using System.Diagnostics;
 
@@ -11,25 +20,25 @@
     internal class CommandLineOptions
     {
         /// <summary>
-        /// Gets or sets the an options for the operation: Decrypts a Mystiko split file set
+        /// Gets or sets a value indicating whether to execute the operation: Decrypts a split file set
         /// </summary>
         [Option('d', "decrypt", HelpText = "Decrypts a Mystiko split file set", MutuallyExclusiveSet = "operation")]
         public bool Decrypt { get; set; }
 
         /// <summary>
-        /// Gets or sets the an options for the operation: Encrypts a file into split files and a manifest
+        /// Gets or sets a value indicating whether to execute the operation: Encrypts a file into split files and a manifest
         /// </summary>
         [Option('e', "encrypt", HelpText = "Encrypts a file into split files and a manifest", MutuallyExclusiveSet = "operation")]
         public bool Encrypt { get; set; }
 
         /// <summary>
-        /// Gets or sets the an options for the operation: Prepares a manifest, but does not create split files
+        /// Gets or sets a value indicating whether to execute the operation: Prepares a manifest, but does not create split files
         /// </summary>
         [Option('h', "hash", HelpText = "Prepares a manifest, but does not create split files", MutuallyExclusiveSet = "operation")]
         public bool Hash { get; set; }
 
         /// <summary>
-        /// Gets or sets the an options for the operation: Creates split files from a prepared manifest
+        /// Gets or sets a value indicating whether to execute the operation: Creates split files from a prepared manifest
         /// </summary>
         [Option('c', "createFromHash", HelpText = "Creates split files from a prepared manifest", MutuallyExclusiveSet = "operation")]
         public bool CreateFromHash { get; set; }

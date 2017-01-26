@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Console", "Mystiko.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Library", "Mystiko.Library\Mystiko.Library.csproj", "{32BEA1BB-EB58-4E50-8A0A-2F1A15FF4DCF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.File.Console", "Mystiko.File.Console\Mystiko.File.Console.csproj", "{8BD62190-1A78-4A74-8AFB-41BDB6B325B3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.PackageManager", "Mystiko.PackageManager\Mystiko.PackageManager.csproj", "{8BD62190-1A78-4A74-8AFB-41BDB6B325B3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{36489263-D8F8-439D-BFA0-AE656A74AC44}"
 	ProjectSection(SolutionItems) = preProject

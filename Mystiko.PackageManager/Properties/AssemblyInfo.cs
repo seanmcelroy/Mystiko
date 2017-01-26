@@ -1,14 +1,23 @@
-﻿using System.Reflection;
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="AssemblyInfo.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   AssemblyInfo.cs
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Mystiko.File.Console")]
+[assembly: AssemblyTitle("mpm")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Mystiko.File.Console")]
+[assembly: AssemblyProduct("Mystiko Package Manager")]
 [assembly: AssemblyCopyright("Copyright © Sean McElroy 2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -31,5 +40,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.2.0")]
+[assembly: AssemblyVersion("1.0.3.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]

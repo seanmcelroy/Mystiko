@@ -25,8 +25,8 @@ This program encrypts files and splits them into separate encrypted parts with
 a manifest file.  To recombine the file, all output artifacts, including the
 manifest file are required.  Usage parameters are as follows:
 
-Switch|Function
-------|--------
+Switch                 | Function
+------                 | --------
 `-d`, `--decrypt`      | OPERATION: Decrypts a Mystiko split file set
 `-e, --encrypt`        | OPERATION: Encrypts a file into split files and a manifest
 `-h, --hash`           | OPERATION: Prepares a manifest, but does not create split files
@@ -65,22 +65,22 @@ final one.  This behavior can be overridden with the '--size' parameter.
 
 To encrypt a file into split parts and a manifest:
 
-`mpm.exe -e -s "C:\Downloads\secret.file" -p -v -y`
+`mpm.exe -e -s "C:\Downloads\secret.file" -f -p -v -y`
 
 
 To decrypt a file from its split parts and manifest:
 
-`mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -p -v -y`
+`mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -f -p -v -y`
 
 
 To decrypt a file from its split parts and manifest to a specific path:
 
-`mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -o "C:\Downloads\secret.file.rebuilt" -p -v -y`
+`mpm.exe -d -m "C:\Downloads\secret.file.mystiko" -o "C:\Downloads\secret.file.rebuilt" -f -p -v -y`
 
 
 To create a special 'local' manifest file of a file without actually creating the encrypted split files:
 
-`mpm.exe -h -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -p -v -y`
+`mpm.exe -h -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -f -p -v -y`
 
 
 To create a split parts from a pre-calculated 'local' manifest:
@@ -88,19 +88,44 @@ To create a split parts from a pre-calculated 'local' manifest:
 `mpm.exe -c -s "C:\Downloads\secret.file" -m "C:\Downloads\secret.file.mystiko2" -p -v -y`
 
 
+#### Split file (chunking) process
 
-#### Known issues / coming improvmeents
+1. Assess the size of the file
+   * Split files in chunks of random sizes between 1 MB and 10 MB, unless the file is large, in which case the chunk size will be randomly between 	 
+	 10^(\lfloor log_{10}fileSizeBytes \rfloor - 2) 
+	 and 
+	 10^(\lfloor log_{10}fileSizeBytes \rfloor - 1)
 
-**Issue:** It is possible to discern when any block is associated with the same
-manifest file by comparing the hash blocks within the manifest, which could be
-incriminating depending on the content and how oppresive the governing regime
-of the user may be.
+2. Perform SHA-512 hashes of each chunk
 
-**Response:** This will soon be resolved by a coming feature that will XOR the
-hash blocks in the manifest file with the last 32 bytes of all other encrypted
-pieces.  This means that it requires all pieces plus the manifest file to
-verify the association of a block to a manifest file.
+3. Generate a symmetric encryption key from the RNG cryptographic provider
 
+4. XOR together the first 32 bytes of each chunk's hash with the symmetric encryption key.  This forms the 'unlock key'
+
+5. Create the split files chunks and encrypt each chunk with the encryption key using AES-256
+
+6. Create the manifest file, which consists of the SHA-512 hashes of all chunks, which provides the order of the files,
+   along with the unlock key.  This ensures to recover the encryption key, one must have all the chunks of the file and
+   the manifest to recover the key.  Encryption key recovery is an XOR of all chunk portions
+
+7. To ensure that one has all chunks to recover the encryption key, before the manifest is committed to disk, the hash
+   of each chunk in the manifest is XOR'ed with the last 32 bytes of each actual encrypted chunk other than the one that
+   hash represents.
+
+   For example, a file is split and encrypted into chunks C1, C2, and C3.
+   The manifest contains the hash for C1 XOR'ed with the last 32 bytes of C2 and C3,
+   the hash for C2 XOR'ed with the last 32 bytes of C1 and C3, and
+   the hash for C3 XOR'ed with the last 32 bytes of C1 and C2.
+
+   This prevents a manifest owner from discerning the key from chunk hashes and the unlock key in the manifest alone - 
+   the tails of split chunk files are required as well.
+
+The decryption process works in reverse: the manifest file contains the order of hashes to reconstruct the file.
+These hashes are XOR'ed together with the unlock key in the manifest to recover the decryption key.  Chunks are
+unencrypted and reconstituted into the resulting file, by default with the .decrypted suffix applied to the filename.
+
+
+#### Known issues / coming improvements
 
 **Issue:** It is possible to discern, by default operation, the name of a file that
 blocks represent.

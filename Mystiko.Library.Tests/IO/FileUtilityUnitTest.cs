@@ -26,7 +26,7 @@ namespace Mystiko.Library.Tests
         public async Task ChunkFileViaOutputDirectory_NullEncryptFile()
         {
             // ReSharper disable once AssignNullToNotNullAttribute
-            await FileUtility.ChunkFileViaOutputDirectory(null, @"C:\", true, true, true);
+            await FileUtility.ChunkFileViaOutputDirectory(null, new DirectoryInfo(@"C:\"), true, true, true);
         }
 
         [TestMethod, ExpectedException(typeof(FileNotFoundException))]
@@ -36,7 +36,7 @@ namespace Mystiko.Library.Tests
             if (fi.Exists)
                 Assert.Inconclusive($"Test file actually exists, but should not: {fi.FullName}");
             else
-                await FileUtility.ChunkFileViaOutputDirectory(fi, fi.DirectoryName, true, true, true);
+                await FileUtility.ChunkFileViaOutputDirectory(fi, fi.Directory, true, true, true);
         }
 
         [TestMethod, ExpectedException(typeof(ArgumentNullException))]
@@ -85,13 +85,13 @@ namespace Mystiko.Library.Tests
             var encryptFile = new FileInfo(encryptFilePath);
             Assert.IsTrue(encryptFile.Exists);
 
-            var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, true, true, true);
+            var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory, true, true, true);
             Assert.IsNotNull(chunkResult);
             var fileManifest = chunkResult;
 
             // Decrypt
             var rebuiltFile = new FileInfo(encryptFilePath + ".rebuilt");
-            var unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(fileManifest, encryptFile.DirectoryName, rebuiltFile, true);
+            var unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(fileManifest, encryptFile.DirectoryName, rebuiltFile, true, true);
             Assert.IsTrue(unchunkResult);
 
             // Compare input encrypt file to output decrypt file

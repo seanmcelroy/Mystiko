@@ -7,7 +7,7 @@
     <ProjectGuid>{8BD62190-1A78-4A74-8AFB-41BDB6B325B3}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Mystiko.File.Console</RootNamespace>
+    <RootNamespace>Mystiko.PackageManager</RootNamespace>
     <AssemblyName>mpm</AssemblyName>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

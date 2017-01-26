@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mystiko.File.Console
+namespace Mystiko.PackageManager
 {
     using System;
     using System.IO;
@@ -100,24 +100,23 @@ namespace Mystiko.File.Console
                 return;
             }
 
-            Console.WriteLine("Encrypting {0}... ", options.SourcePath);
-
-            Task.Run(async () =>
+            var manifestFile = new FileInfo(Path.Combine(encryptFile.Directory.FullName, encryptFile.Name + ".mystiko"));
+            if (manifestFile.Exists)
             {
-                var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory.FullName, options.Force, options.Verbose, options.Verify, options.Size);
-                var manifestFile = new FileInfo(Path.Combine(encryptFile.Directory.FullName, encryptFile.Name + ".mystiko"));
-
-                if (manifestFile.Exists)
+                if (!options.Force)
                 {
-                    if (!options.Force)
-                    {
-                        Console.WriteLine("Manifest file already exists: {0}", manifestFile.FullName);
-                        return;
-                    }
-
-                    manifestFile.Delete();
+                    Console.WriteLine("Manifest file already exists: {0}", manifestFile.FullName);
+                    return;
                 }
 
+                manifestFile.Delete();
+            }
+
+            Console.WriteLine("Encrypting {0}... ", options.SourcePath);
+            Task.Run(async () =>
+            {
+                var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory, options.Force, options.Verbose, options.Verify, options.Size);
+                
                 using (var sw = new StreamWriter(manifestFile.FullName))
                 {
                     var json = JsonConvert.SerializeObject(chunkResult);
@@ -172,7 +171,7 @@ namespace Mystiko.File.Console
             Task.Run(
                 async () =>
                 {
-                    unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(new FileInfo(options.ManifestFile), new FileInfo(output), options.Force);
+                    unchunkResult = await FileUtility.UnchunkFileViaOutputDirectory(new FileInfo(options.ManifestFile), new FileInfo(output), options.Force, options.Verbose);
                 }).Wait();
 
             if (unchunkResult)
@@ -323,7 +322,7 @@ namespace Mystiko.File.Console
 
             Task.Run(async () =>
             {
-                var chunkResult = await FileUtility.ChunkFileViaOutputDirectoryFromPreHash(sourceFile, manifestFile, sourceFile.Directory.FullName, options.Force, options.Verbose, options.Verify);
+                var chunkResult = await FileUtility.ChunkFileViaOutputDirectoryFromPreHash(sourceFile, manifestFile, sourceFile.Directory, options.Force, options.Verbose, options.Verify);
                 
                 using (var sw = new StreamWriter(manifestFile.FullName))
                 {
