@@ -19,7 +19,7 @@ distribution functionality similar to BitTorrent or Freenet.
 
 mpm - Mystiko Package Manager
 
-(Output from Mystiko.File.Console project)
+(Output from Mystiko.PackageManager project)
 
 This program encrypts files and splits them into separate encrypted parts with
 a manifest file.  To recombine the file, all output artifacts, including the

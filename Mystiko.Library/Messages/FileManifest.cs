@@ -1,14 +1,11 @@
-﻿using System;
-
-namespace Mystiko.Messages
+﻿namespace Mystiko.Messages
 {
+    using System;
     using System.IO;
 
     public class FileManifest
     {
         public FileInfo FileInformation { get; set; }
-
-        //public List<BlockInfo> BlockInformation { get; set; }
 
         public static FileManifest Parse(string path)
         {

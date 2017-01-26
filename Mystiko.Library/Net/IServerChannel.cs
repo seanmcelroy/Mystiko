@@ -9,14 +9,14 @@
 
 namespace Mystiko.Net
 {
+    using System;
+    using System.Collections.Generic;
     using System.Collections.ObjectModel;
+    using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
-    using System.Collections.Generic;
-    using System;
-    using System.Net;
 
     /// <summary>
     /// A channel over which a server accepts connections

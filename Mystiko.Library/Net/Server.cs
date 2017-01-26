@@ -77,7 +77,7 @@
             }
 
             // Create network channel
-            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any, 5109))).Invoke();
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any))).Invoke();
             if (channel == null)
             {
                 throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));

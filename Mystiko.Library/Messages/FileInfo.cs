@@ -16,7 +16,6 @@
         [NotNull]
         public byte[] SHA512 { get; set; }
 
-
         public static FileInfo Parse(string path)
         {
             if (path == null)

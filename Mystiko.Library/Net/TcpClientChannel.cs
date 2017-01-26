@@ -66,7 +66,7 @@ namespace Mystiko.Net
             this._receiveTask = new Task(async () =>
             {
                 var stream = this._client.GetStream();
-                while (true)
+                while (!serverCancellationToken.IsCancellationRequested)
                 {
                     var bytesRead = await stream.ReadAsync(this._rawInputBuffer, 0, 32767, serverCancellationToken);
 
@@ -80,8 +80,6 @@ namespace Mystiko.Net
                         // Read some more.
                         continue;
                     }
-
-                    //Jose.JWT.Decode()
 
                     var message = content.Split('\r').FirstOrDefault()?.TrimEnd('\r', '\n');
                     Console.WriteLine($"Message received: {message}");

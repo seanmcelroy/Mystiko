@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Console", "Mystiko.Console\Mystiko.Console.csproj", "{391DACB2-80CC-4416-B6A6-FDA94A740925}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Node", "Mystiko.Node\Mystiko.Node.csproj", "{391DACB2-80CC-4416-B6A6-FDA94A740925}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Library", "Mystiko.Library\Mystiko.Library.csproj", "{32BEA1BB-EB58-4E50-8A0A-2F1A15FF4DCF}"
 EndProject

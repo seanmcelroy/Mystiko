@@ -128,10 +128,10 @@ namespace Mystiko.Net
             Debug.Assert(publicKeyParams != null, "publicKeyParams != null");
             var qa = ec.G.Multiply(privD);
             Debug.Assert(qa != null, "qa != null");
-            Debug.Assert(qa.X != null, "qa.X != null");
-            ret.PublicKeyX = qa.X.ToBigInteger().ToByteArrayUnsigned();
-            Debug.Assert(qa.Y != null, "qa.Y != null");
-            ret.PublicKeyY = qa.Y.ToBigInteger().ToByteArrayUnsigned();
+            Debug.Assert(qa.Normalize().XCoord != null, "qa.X != null");
+            ret.PublicKeyX = qa.Normalize().XCoord.ToBigInteger().ToByteArrayUnsigned();
+            Debug.Assert(qa.Normalize().YCoord != null, "qa.Y != null");
+            ret.PublicKeyY = qa.Normalize().YCoord.ToBigInteger().ToByteArrayUnsigned();
 
             // Calculate nonce for public key
             byte[] identityBytes;

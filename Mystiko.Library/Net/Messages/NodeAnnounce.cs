@@ -11,18 +11,6 @@
     /// </summary>
     public class NodeAnnounce : IMessage
     {
-        public class NodeManifest
-        {
-            [NotNull]
-            public string Address { get; set; }
-
-            [NotNull]
-            public byte[] PublicKeyX { get; set; }
-
-            [NotNull]
-            public byte[] PublicKeyY { get; set; }
-        }
-
         /// <summary>
         /// Gets or sets the nodes announced
         /// </summary>
@@ -72,6 +60,18 @@
 
                 this.Nodes = nodeManifests.ToArray();
             }
+        }
+        
+        public class NodeManifest
+        {
+            [NotNull]
+            public string Address { get; set; }
+
+            [NotNull]
+            public byte[] PublicKeyX { get; set; }
+
+            [NotNull]
+            public byte[] PublicKeyY { get; set; }
         }
     }
 }

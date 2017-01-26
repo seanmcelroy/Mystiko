@@ -22,11 +22,15 @@ namespace Mystiko.Net
 
     using JetBrains.Annotations;
 
+    using log4net;
+
     /// <summary>
     /// A channel for servers to accept TCP/IP clients
     /// </summary>
     public class TcpServerChannel : IServerChannel, IDisposable
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpServerChannel));
+
         /// <summary>
         /// The identity of the server node
         /// </summary>
@@ -60,7 +64,6 @@ namespace Mystiko.Net
         /// <summary>
         /// The port used for local peer discovery broadcasts.  By default this is 5110
         /// </summary>
-        [NotNull]
         private readonly int _multicastReceivePort;
 
         /// <summary>
@@ -119,18 +122,34 @@ namespace Mystiko.Net
         /// <inheritdoc />
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            this._listener.Start();
+            Logger.Info($"Listening for peers on {((IPEndPoint)this._listener.LocalEndpoint).Address}:{((IPEndPoint)this._listener.LocalEndpoint).Port}");
+            try
+            {
+                this._listener.Start();
+            }
+            catch (SocketException sex)
+            {
+                Logger.Error($"Error when starting the peer listener: {sex.ErrorCode}: {sex.Message}", sex);
+                return;
+            }
 
             // Setup and start incoming acceptor
             this._acceptTask = new Task(async () =>
             {
-                while (!cancellationToken.IsCancellationRequested)
+                try
                 {
-                    var tcpClient = await this._listener.AcceptTcpClientAsync();
-                    Debug.Assert(tcpClient != null, "tcpClient != null");
-                    Console.WriteLine($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        var tcpClient = await this._listener.AcceptTcpClientAsync();
+                        Debug.Assert(tcpClient != null, "tcpClient != null");
+                        Logger.Verbose($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
 
-                    this._clients.Add(new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken));
+                        this._clients.Add(new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken));
+                    }
+                }
+                finally
+                {
+                    Logger.Warn("Shutting down peer connection accept task");
                 }
             });
             this._acceptTask.Start();
@@ -138,6 +157,7 @@ namespace Mystiko.Net
             // Setup and start multicast receiver
             this._multicastReceiveTask = new Task(async () =>
             {
+                Logger.Info($"Joining multicast group for peer discovery on {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
                 this._multicastUdpClient.JoinMulticastGroup(this._multicastGroupAddress);
                 try
                 {
@@ -170,7 +190,7 @@ namespace Mystiko.Net
 
                         var tcpClient = await this._listener.AcceptTcpClientAsync();
                         Debug.Assert(tcpClient != null, "tcpClient != null");
-                        Console.WriteLine($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
+                        Logger.Verbose($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
 
                         this._clients.Add(new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken));
                     }
@@ -184,6 +204,7 @@ namespace Mystiko.Net
                 }
                 finally
                 {
+                    Logger.Info($"Dropping multicast group for peer discovery from {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
                     this._multicastUdpClient.DropMulticastGroup(this._multicastGroupAddress);
                 }
             });
@@ -207,7 +228,6 @@ namespace Mystiko.Net
         }
 
         /// <inheritdoc />
-        [NotNull]
         public IEnumerable<Tuple<IPAddress, int>> DiscoverPotentialPeers(CancellationToken cancellationToken)
         {
             yield break;
@@ -221,7 +241,7 @@ namespace Mystiko.Net
             if (!this._disposed)
             {
                 // Dispose managed resources.
-                this._listener?.Stop();
+                this._listener.Stop();
                 this._acceptTask?.Dispose();
                 this._multicastUdpClient.Dispose();
                 this._multicastReceiveTask?.Dispose();

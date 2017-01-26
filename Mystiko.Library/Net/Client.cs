@@ -1,12 +1,12 @@
-﻿using System;
-
-namespace Mystiko.Net
+﻿namespace Mystiko.Net
 {
+    using System;
     using System.Linq;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+
     public class Client
     {
         /// <summary>
@@ -16,10 +16,11 @@ namespace Mystiko.Net
 
         private readonly TcpClient _client;
 
-        private Task _receiveTask;
-
         private readonly byte[] _rawInputBuffer = new byte[BufferSize];
+
         private readonly StringBuilder _builder = new StringBuilder();
+
+        private Task _receiveTask;
 
         internal Client(TcpClient client, CancellationToken serverCancellationToken)
         {
@@ -31,7 +32,7 @@ namespace Mystiko.Net
             this._receiveTask = new Task(async () =>
             {
                 var stream = this._client.GetStream();
-                while (true)
+                while (!serverCancellationToken.IsCancellationRequested)
                 {
                     var bytesRead = await stream.ReadAsync(this._rawInputBuffer, 0, 32767, serverCancellationToken);
 
@@ -46,8 +47,7 @@ namespace Mystiko.Net
                         continue;
                     }
 
-                    //Jose.JWT.Decode()
-
+                    // Jose.JWT.Decode()
                     var message = content.Split('\r').FirstOrDefault()?.TrimEnd('\r', '\n');
                     Console.WriteLine($"Message received: {message}");
                 }

@@ -1,5 +1,4 @@
-﻿
-namespace Mystiko.IO
+﻿namespace Mystiko.IO
 {
     using System;
     using System.Collections.Generic;
@@ -13,6 +12,18 @@ namespace Mystiko.IO
 
     public class Block
     {
+        public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last64Bytes)
+        {
+            if (hash == null)
+                throw new ArgumentNullException(nameof(hash));
+            if (last64Bytes == null)
+                throw new ArgumentNullException(nameof(last64Bytes));
+
+            this.Path = path;
+            this.FullHash = hash;
+            this.Last64Bytes = last64Bytes;
+        }
+
         [CanBeNull]
         public string Path { get; }
 
@@ -29,18 +40,6 @@ namespace Mystiko.IO
         /// The sequence ordering of the block
         /// </summary>
         public int Ordering { get; set; }
-
-        public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last64Bytes)
-        {
-            if (hash == null)
-                throw new ArgumentNullException(nameof(hash));
-            if (last64Bytes == null)
-                throw new ArgumentNullException(nameof(last64Bytes));
-
-            this.Path = path;
-            this.FullHash = hash;
-            this.Last64Bytes = last64Bytes;
-        }
 
         [NotNull]
         public static async Task<Block> NoSavedChunk(
