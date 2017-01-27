@@ -144,6 +144,7 @@ namespace Mystiko.Net
                 bw.Write(0L); // Placeholder 8 bytes
                 identityBytes = ms.ToArray();
             }
+
             ret.Nonce = HashUtility.HashForZeroCount(identityBytes, targetDifficulty);
 
             return new Tuple<ServerNodeIdentity, byte[]>(ret, privD.ToByteArray());

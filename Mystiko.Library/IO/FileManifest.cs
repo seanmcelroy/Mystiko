@@ -57,6 +57,7 @@
             {
                 return FileUtility.ByteArrayToString(this.UnlockBytes);
             }
+
             set
             {
                 this.UnlockBytes = FileUtility.StringToByteArray(value);
@@ -73,6 +74,7 @@
             {
                 return Convert.ToInt64((this.PackedUtc - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds);
             }
+
             set
             {
                 if (value != null)
@@ -92,6 +94,7 @@
                     return Convert.ToInt64((this.CreatedUtc.Value - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds);
                 return null;
             }
+
             set
             {
                 if (value != null)

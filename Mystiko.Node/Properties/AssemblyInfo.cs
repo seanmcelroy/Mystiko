@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Mystiko.Console")]
+[assembly: AssemblyTitle("Mystiko.Node")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Mystiko.Console")]
+[assembly: AssemblyProduct("Mystiko.Node")]
 [assembly: AssemblyCopyright("Copyright © Sean McElroy 2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

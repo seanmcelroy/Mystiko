@@ -335,7 +335,6 @@ namespace Mystiko.PackageManager
                     sw.Close();
                 }
             }).Wait();
-
         }
     }
 }

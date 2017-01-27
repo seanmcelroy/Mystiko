@@ -227,6 +227,7 @@ namespace Mystiko.IO
                 manifest = JsonConvert.DeserializeObject<FileManifest>(sr.ReadToEnd());
                 fs.Close();
             }
+
             Debug.Assert(manifest != null, "manifest != null");
             Debug.Assert(manifest.BlockHashes != null, "manifest.BlockHashes != null");
             Debug.Assert(manifestFile.Directory != null, "manifestFile.Directory != null");
@@ -269,6 +270,7 @@ namespace Mystiko.IO
                 }))
                     fileInfoList.Add(new FileInfo(file));
             }
+
             return await UnchunkFile(manifest, fileInfoList, saveFile, overwrite, verbose);
         }
 
@@ -469,7 +471,7 @@ namespace Mystiko.IO
                                     if (decryptReadMax != 0)
                                     {
                                         if ((uint)(decryptReadMax % 128) > 0U)
-                                            decryptReadMax += 128 - decryptReadMax % 128;
+                                            decryptReadMax += 128 - (decryptReadMax % 128);
                                         if ((int)fsBlock.Length - totalDecryptedRead < buffer.Length)
                                             decryptReadMax -= 4;
                                         decryptReadActual = await csBlock.ReadAsync(buffer, 0, decryptReadMax);
@@ -496,6 +498,7 @@ namespace Mystiko.IO
 
                 fsSave.Close();
             }
+
             return true;
         }
 
@@ -729,7 +732,8 @@ namespace Mystiko.IO
                 {
                     Debug.Assert(b != null, "b != null");
                     return b.FullHash.Take(32).ToArray();
-                }).Aggregate(ExclusiveOr), unlockXorKey);
+                }).Aggregate(ExclusiveOr),
+                unlockXorKey);
 
             Debug.Assert(encKey.SequenceEqual(recoveredEncKey), "encKey.SequenceEqual(recoveredEncKey)");
 

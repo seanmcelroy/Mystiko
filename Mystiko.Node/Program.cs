@@ -1,6 +1,7 @@
 ﻿namespace Mystiko.Console
 {
     using System;
+    using System.Diagnostics;
     using System.Threading.Tasks;
 
     using log4net.Config;
@@ -17,12 +18,20 @@
             XmlConfigurator.Configure();
             var logger = log4net.LogManager.GetLogger(typeof(Program));
 
-            logger.Info("Starting server initialization");
+            Debug.Assert(logger != null, "logger != null");
+            logger.Info("Starting server initialization #1");
             using (var server = new Server())
             using (var serverTask = Task.Run(async () => { await server.StartAsync(); }))
             {
-                logger.Info("Server process initialization has completed");
-                Console.ReadLine();
+                logger.Info("Server process initialization #1 has completed");
+
+                logger.Info("Starting server initialization #2");
+                using (var server2 = new Server(listenerPort: 5108))
+                using (var serverTask2 = Task.Run(async () => { await server2.StartAsync(); }))
+                {
+                    logger.Info("Server process initialization #2 has completed");
+                    Console.ReadLine();
+                }
             }
         }
     }

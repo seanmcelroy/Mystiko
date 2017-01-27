@@ -14,7 +14,8 @@
         {
             var na = new NodeAnnounce
             {
-                Nodes = new[] {
+                Nodes = new[]
+                {
                     new NodeAnnounce.NodeManifest
                         {
                             Address = "0.0.0.0",

@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mystiko.Library.Tests
+namespace Mystiko.Library.Tests.IO
 {
     using System;
     using System.Diagnostics;

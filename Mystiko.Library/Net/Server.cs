@@ -37,9 +37,13 @@
         /// </summary>
         /// <param name="serverNodeIdentityFactory">A function that returns a tuple of a <see cref="ServerNodeIdentity"/> and the private key of that identity as a byte array</param>
         /// <param name="serverChannelFactory">A function that returns a <see cref="IServerChannel"/> for listening for incoming connections</param>
+        /// <param name="listenerPort">
+        /// The port on which to listen for peer client connections.  By default, this is 5109
+        /// </param>
         public Server(
             [CanBeNull] Func<Tuple<ServerNodeIdentity, byte[]>> serverNodeIdentityFactory = null,
-            [CanBeNull] Func<IServerChannel> serverChannelFactory = null)
+            [CanBeNull] Func<IServerChannel> serverChannelFactory = null,
+            int listenerPort = 5109)
         {
             // Load or create node identity
             using (var isoStore = IsolatedStorageFile.GetStore(IsolatedStorageScope.User | IsolatedStorageScope.Assembly, null, null))
@@ -77,7 +81,7 @@
             }
 
             // Create network channel
-            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any))).Invoke();
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any, listenerPort))).Invoke();
             if (channel == null)
             {
                 throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));
@@ -132,10 +136,8 @@
             {
                 // Dispose managed resources.
                 this._acceptCancellationTokenSource.Cancel();
-                if (this._serverChannel is IDisposable)
-                {
-                    ((IDisposable)this._serverChannel).Dispose();
-                }
+                var channel = this._serverChannel as IDisposable;
+                channel?.Dispose();
 
                 // There are no unmanaged resources to release, but
                 // if we add them, they need to be released here.
