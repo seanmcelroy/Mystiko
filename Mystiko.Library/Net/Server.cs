@@ -1,4 +1,13 @@
-﻿namespace Mystiko.Net
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Server.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   A server capable of listening for <see cref="Client" /> connections from other nodes in the network
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Net
 {
     using System;
     using System.Diagnostics;
@@ -12,6 +21,9 @@
 
     using Newtonsoft.Json;
 
+    /// <summary>
+    /// A server capable of listening for <see cref="Client"/> connections from other nodes in the network
+    /// </summary>
     public class Server : IDisposable
     {
         /// <summary>

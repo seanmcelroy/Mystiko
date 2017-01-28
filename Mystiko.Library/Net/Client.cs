@@ -1,4 +1,13 @@
-﻿namespace Mystiko.Net
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Client.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   A client capable of connecting to other nodes in the network
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Net
 {
     using System;
     using System.Linq;
@@ -7,6 +16,9 @@
     using System.Threading;
     using System.Threading.Tasks;
 
+    /// <summary>
+    /// A client capable of connecting to other nodes in the network
+    /// </summary>
     public class Client
     {
         /// <summary>

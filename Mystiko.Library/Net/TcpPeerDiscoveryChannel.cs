@@ -1,4 +1,13 @@
-﻿namespace Mystiko.Net
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="TcpPeerDiscoveryChannel.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   An out-of-band channel for transmitting and receiving information about peer discovery information
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Net
 {
     using System;
     using System.Linq;
@@ -108,10 +117,22 @@
             this._multicastUdpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             this._multicastUdpClient.Client.Bind(new IPEndPoint(IPAddress.Any, this._multicastReceivePort));
         }
-        
+
+        /// <summary>
+        /// Gets the public Internet IP address for this node as it would appear to remote nodes in other networks
+        /// </summary>
+        [CanBeNull]
+        public IPAddress PublicIPAddress { get; private set; }
+
         /// <inheritdoc />
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            // First, we need to find out our public IP address
+            if (!await this.FindPublicIPAddress(cancellationToken))
+            {
+                Logger.Warn("Unable to locate public IP address this node routes out");
+            }
+
             // Setup and start multicast receiver
             this._multicastReceiveTask = new Task(async () =>
             {
@@ -173,6 +194,56 @@
                 }
             });
             this._multicastBroadcastTask.Start();
+        }
+
+        /// <summary>
+        /// Determines the public Internet IP address for this node as it would appear to remote nodes in other networks
+        /// </summary>
+        /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
+        /// <returns>A value indicating whether an address was located and set in the <see cref="PublicIPAddress"/> property</returns>
+        public async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me" };
+            
+            foreach (var source in sources)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return false;
+                }
+
+                using (var wc = new WebClient())
+                {
+                    try
+                    {
+                        Logger.Debug($"Requesting IP address from remote source {source}");
+                        var myIp = await wc.DownloadStringTaskAsync(source);
+                        if (string.IsNullOrWhiteSpace(myIp))
+                        {
+                            Logger.Warn($"IP lookup source {source} returned an empty response");
+                            continue;
+                        }
+
+                        IPAddress publicIp;
+                        if (!IPAddress.TryParse(myIp.Trim().TrimEnd('\r', '\n'), out publicIp))
+                        {
+                            Logger.Warn($"IP lookup source {source} returned a value that could not be parsed into an IP address: {myIp}");
+                            continue;
+                        }
+
+                        Logger.Info($"External IP address determined to be {publicIp} from remote source {source}");
+                        this.PublicIPAddress = publicIp;
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn($"Exception when attempting to gather public IP address from {source}", ex);
+                    }
+                }
+            }
+
+            Logger.Warn($"Unable to find public IP address after querying {sources.Length} sources");
+            return false;
         }
 
         /// <summary>

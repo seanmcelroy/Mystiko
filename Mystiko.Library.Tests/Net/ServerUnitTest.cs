@@ -1,4 +1,13 @@
-﻿namespace Mystiko.Library.Tests.Net
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="ServerUnitTest.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   Unit tests of the <see cref="Server" /> class
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Library.Tests.Net
 {
     using System;
     using System.Dynamic;
@@ -9,8 +18,11 @@
 
     using Mystiko.Net;
 
+    /// <summary>
+    /// Unit tests of the <see cref="Server"/> class
+    /// </summary>
     [TestClass]
-    public class ServerUnit
+    public class ServerUnitTest
     {
         private Tuple<ServerNodeIdentity, byte[]> _serverIdentity;
 

@@ -58,7 +58,8 @@
     <Compile Include="IO\DirectoryUtilityUnitTest.cs" />
     <Compile Include="IO\FileUtilityUnitTest.cs" />
     <Compile Include="Net\Messages\NodeAnnounceUnitTest.cs" />
-    <Compile Include="Net\ServerUnit.cs" />
+    <Compile Include="Net\ServerUnitTest.cs" />
+    <Compile Include="Net\TcpPeerDiscoveryChannelUnitTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
