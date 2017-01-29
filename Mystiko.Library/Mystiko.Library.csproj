@@ -73,6 +73,7 @@
     <Compile Include="Net\Messages\NodeAnnounce.cs" />
     <Compile Include="Net\Messages\NodeHello.cs" />
     <Compile Include="Net\Messages\PeerAnnounce.cs" />
+    <Compile Include="Net\NetUtility.cs" />
     <Compile Include="Net\Server.cs" />
     <Compile Include="Net\ServerNodeIdentity.cs" />
     <Compile Include="Net\ServerNodeIdentityAndKey.cs" />

@@ -60,7 +60,7 @@
     <Compile Include="Net\Messages\PeerAnnounceUnitTest.cs" />
     <Compile Include="Net\Messages\NodeAnnounceUnitTest.cs" />
     <Compile Include="Net\ServerUnitTest.cs" />
-    <Compile Include="Net\TcpPeerDiscoveryChannelUnitTest.cs" />
+    <Compile Include="Net\NetUtilityUnitTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

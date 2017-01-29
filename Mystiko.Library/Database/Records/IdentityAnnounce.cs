@@ -4,7 +4,7 @@
 // </copyright>
 // <summary>
 //   A record that announces a new identity on the network.  Identities may or may not ever
-//   be associated to a single or identifyable group of humans, organizations, or nodes;
+//   be associated to a single or identifiable group of humans, organizations, or nodes;
 //   they simply represent a proof-of-work that was generated to link together transactions
 //   that were requested together.  Identities can be 'throw-away', and any given actor
 //   on the network may use multiple identities, or even share an identity with another
@@ -16,14 +16,14 @@ namespace Mystiko.Database.Records
 {
     using System;
     using System.IO;
-    
-    using JetBrains.Annotations;
 
     using Cryptography;
 
+    using JetBrains.Annotations;
+
     /// <summary>
     /// A record that announces a new identity on the network.  Identities may or may not ever
-    /// be associated to a single or identifyable group of humans, organizations, or nodes;
+    /// be associated to a single or identifiable group of humans, organizations, or nodes;
     /// they simply represent a proof-of-work that was generated to link together transactions
     /// that were requested together.  Identities can be 'throw-away', and any given actor
     /// on the network may use multiple identities, or even share an identity with another
@@ -39,7 +39,7 @@ namespace Mystiko.Database.Records
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
-        [NotNull]
+        [CanBeNull]
         public byte[] PublicKeyX { get; set; }
 
         /// <summary>
@@ -50,6 +50,9 @@ namespace Mystiko.Database.Records
         {
             get
             {
+                if (this.PublicKeyX == null)
+                    throw new InvalidOperationException("PublicKeyX is not set");
+                
                 return Convert.ToBase64String(this.PublicKeyX);
             }
 
@@ -62,7 +65,7 @@ namespace Mystiko.Database.Records
         /// <summary>
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
-        [NotNull]
+        [CanBeNull]
         public byte[] PublicKeyY { get; set; }
 
         /// <summary>
@@ -73,6 +76,9 @@ namespace Mystiko.Database.Records
         {
             get
             {
+                if (this.PublicKeyY == null)
+                    throw new InvalidOperationException("PublicKeyY is not set");
+
                 return Convert.ToBase64String(this.PublicKeyY);
             }
 
@@ -154,6 +160,16 @@ namespace Mystiko.Database.Records
         /// <returns>A value indicating whether or not the <see cref="Nonce"/> value has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
         public bool Verify(int targetDifficulty)
         {
+            if (this.PublicKeyX == null)
+            {
+                throw new InvalidOperationException("PublicKeyX is not set");
+            }
+
+            if (this.PublicKeyY == null)
+            {
+                throw new InvalidOperationException("PublicKeyY is not set");
+            }
+
             return HashUtility.ValidateIdentity(this.DateEpoch, this.PublicKeyX, this.PublicKeyY, this.Nonce, targetDifficulty);
         }
     }

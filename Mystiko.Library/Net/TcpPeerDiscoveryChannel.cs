@@ -17,12 +17,14 @@ namespace Mystiko.Net
     using System.Threading;
     using System.Threading.Tasks;
 
+    using Cryptography;
+
     using JetBrains.Annotations;
 
     using log4net;
 
-    using Mystiko.Cryptography;
-    using Mystiko.Net.Messages;
+    using Messages;
+    using System.Linq;
 
     /// <summary>
     /// An out-of-band channel for transmitting and receiving information about peer discovery information
@@ -207,8 +209,12 @@ namespace Mystiko.Net
                                                 continue;
                                             }
 
-                                            Logger.Debug($"Peer announcement received from: {peerAnnounce.PublicIPAddress}(nonce@{peerAnnounce.Nonce})");
-                                            HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
+                                            var handled = this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
+                                            if (handled)
+                                            {
+                                                Logger.Debug($"Peer announcement received from: {peerAnnounce.PublicIPAddress}(nonce@{peerAnnounce.Nonce})");
+                                            }
+
                                             break;
                                         default:
                                             throw new InvalidOperationException($"Unknown message type {nextMessageBytes[0]}");
@@ -285,48 +291,9 @@ namespace Mystiko.Net
         /// <returns>A value indicating whether an address was located and set in the <see cref="PublicIPAddress"/> property</returns>
         internal async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
         {
-            var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me", @"http://ifconfig.me/ip" };
-
-            foreach (var source in sources)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return false;
-                }
-
-                using (var wc = new WebClient())
-                {
-                    try
-                    {
-                        Logger.Debug($"Requesting IP address from remote source {source}");
-                        Debug.Assert(source != null, "source != null");
-                        var myIp = await wc.DownloadStringTaskAsync(source);
-                        if (string.IsNullOrWhiteSpace(myIp))
-                        {
-                            Logger.Warn($"IP lookup source {source} returned an empty response");
-                            continue;
-                        }
-
-                        IPAddress publicIp;
-                        if (!IPAddress.TryParse(myIp.Trim().TrimEnd('\r', '\n'), out publicIp))
-                        {
-                            Logger.Warn($"IP lookup source {source} returned a value that could not be parsed into an IP address: {myIp}");
-                            continue;
-                        }
-
-                        Logger.Info($"External IP address determined to be {publicIp} from remote source {source}");
-                        this.PublicIPAddress = publicIp;
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warn($"Exception when attempting to gather public IP address from {source}", ex);
-                    }
-                }
-            }
-
-            Logger.Warn($"Unable to find public IP address after querying {sources.Length} sources");
-            return false;
+            var publicIp = await NetUtility.FindPublicIPAddress(cancellationToken);
+            this.PublicIPAddress = publicIp;
+            return publicIp != null;
         }
 
         /// <summary>
@@ -334,7 +301,8 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="remoteEndpoint">The remote endpoint that sent the message</param>
         /// <param name="announcement">The message to handle</param>
-        private void HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
+        /// <returns>If the announcement was handled, true; otherwise, if it was ignored, false</returns>
+        private bool HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
         {
             if (remoteEndpoint == null)
             {
@@ -366,15 +334,22 @@ namespace Mystiko.Net
                 throw new ArgumentException("Nonce value not supplied", nameof(announcement));
             }
 
+            // Is this my own multicast message?
+            if (this._serverIdentity.DateEpoch == announcement.DateEpoch && this._serverIdentity.PublicKeyX.SequenceEqual(announcement.PublicKeyX) && this._serverIdentity.PublicKeyY.SequenceEqual(announcement.PublicKeyY) && this._serverIdentity.Nonce == announcement.Nonce)
+            {
+                // Message from myself
+                return false;
+            }
+
             // Validate the presented identity hashes out
             var valid = HashUtility.ValidateIdentity(announcement.DateEpoch.Value, announcement.PublicKeyX, announcement.PublicKeyY, announcement.Nonce.Value, 3);
             if (!valid)
             {
                 Logger.Warn($"Unverifiable hash in announcement from {remoteEndpoint.Address}");
-                return;
+                return false;
             }
 
-
+            return true;
         }
 
         /// <summary>

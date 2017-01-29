@@ -26,7 +26,7 @@
                 logger.Info("Server process initialization #1 has completed");
 
                 logger.Info("Starting server initialization #2");
-                using (var server2 = new Server(true, listenerPort: 5108))
+                using (var server2 = new Server(false, listenerPort: 5108))
                 using (var serverTask2 = Task.Run(async () => { await server2.StartAsync(); }))
                 {
                     logger.Info("Server process initialization #2 has completed");

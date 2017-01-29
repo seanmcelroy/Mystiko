@@ -13,6 +13,7 @@ namespace Mystiko.Net
     using System;
     using System.Diagnostics;
     using System.IO;
+    using System.Security.Cryptography;
 
     using Cryptography;
 
@@ -100,9 +101,18 @@ namespace Mystiko.Net
         [NotNull, Pure]
         public static Tuple<ServerNodeIdentity, byte[]> Generate(int targetDifficulty)
         {
+            Random insecureRandom;
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                var randomBytes = new byte[4];
+                rng.GetBytes(randomBytes);
+                var seed = BitConverter.ToInt32(randomBytes, 0);
+                insecureRandom = new Random(seed);
+            }
+
             var ret = new ServerNodeIdentity
             {
-                DateEpoch = Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds)
+                DateEpoch = Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - insecureRandom.Next(0, 3600))
             };
 
             // Elliptic Curve

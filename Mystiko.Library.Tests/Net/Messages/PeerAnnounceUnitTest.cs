@@ -21,6 +21,9 @@ namespace Mystiko.Library.Tests.Net.Messages
     [TestClass]
     public class PeerAnnounceUnitTest
     {
+        /// <summary>
+        /// Converts the record to a block chain payload
+        /// </summary>
         [TestMethod]
         public void ToWire()
         {
@@ -34,6 +37,9 @@ namespace Mystiko.Library.Tests.Net.Messages
             Assert.IsNotNull(ret);
         }
 
+        /// <summary>
+        /// Hydrates the record from a block chain payload
+        /// </summary>
         [TestMethod]
         public void FromWire()
         {

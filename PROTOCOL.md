@@ -1,4 +1,10 @@
-= Mystiko Network Protocol =
+# Mystiko Network Protocol
+
+## Discovery
+
+### Local area networks
+
+Nodes publish
 
 == Connection ==
 
