@@ -117,7 +117,7 @@ namespace Mystiko.Net
                 throw new ArgumentNullException(nameof(message));
             }
 
-            this._client.Client.Send(message.ToWire());
+            this._client.Client.Send(message.ToPayload());
         }
     }
 }

@@ -57,6 +57,7 @@
     <Compile Include="Database\Records\IdentityAnnounceUnitTest.cs" />
     <Compile Include="IO\DirectoryUtilityUnitTest.cs" />
     <Compile Include="IO\FileUtilityUnitTest.cs" />
+    <Compile Include="Net\Messages\PeerAnnounceUnitTest.cs" />
     <Compile Include="Net\Messages\NodeAnnounceUnitTest.cs" />
     <Compile Include="Net\ServerUnitTest.cs" />
     <Compile Include="Net\TcpPeerDiscoveryChannelUnitTest.cs" />

@@ -1,7 +1,17 @@
-﻿namespace Mystiko.Net.Messages
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="NodeAnnounce.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   A message sent from nodes to announce the presence of other nodes on the network
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Net.Messages
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
 
     using JetBrains.Annotations;
@@ -18,11 +28,15 @@
         public NodeManifest[] Nodes { get; set; }
 
         /// <inheritdoc />
-        public byte[] ToWire()
+        public MessageType MessageType => MessageType.NodeAnnounce;
+
+        /// <inheritdoc />
+        public byte[] ToPayload()
         {
             using (var ms = new MemoryStream())
             using (var bw = new BinaryWriter(ms))
             {
+                bw.Write((byte)this.MessageType);
                 bw.Write(this.Nodes.Length);
                 foreach (var node in this.Nodes)
                 {
@@ -36,16 +50,23 @@
         }
 
         /// <inheritdoc />
-        public void FromWire(byte[] payload)
+        public void FromPayload(byte[] payload)
         {
             if (payload == null)
             {
                 throw new ArgumentNullException(nameof(payload));
             }
 
+            if (payload.Length < 1)
+            {
+                throw new ArgumentException("Payload less than one byte in length", nameof(payload));
+            }
+
             using (var ms = new MemoryStream(payload))
             using (var br = new BinaryReader(ms))
             {
+                var messageType = br.ReadByte();
+                Debug.Assert(MessageType.NodeAnnounce.Equals(messageType), "Message is parsed as wrong type");
                 var nodeCount = br.ReadInt32();
                 var nodeManifests = new List<NodeManifest>();
                 for (var i = 0; i < nodeCount; i++)

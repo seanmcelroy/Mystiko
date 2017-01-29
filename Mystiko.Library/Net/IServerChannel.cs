@@ -28,6 +28,11 @@ namespace Mystiko.Net
         /// </summary>
         [NotNull]
         ReadOnlyCollection<IClientChannel> Clients { get; }
+        
+        /// <summary>
+        /// Gets or sets a value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only.
+        /// </summary>
+        bool Passive { get; set; }
 
         /// <summary>
         /// Places the server into a state where it listens for new connections

@@ -84,7 +84,7 @@ namespace Mystiko.Net
         /// Gets or sets the nonce applied to the epoch and public keys of the node, proving
         /// as a proof of work
         /// </summary>
-        public long Nonce { get; set; }
+        public ulong Nonce { get; set; }
 
         /// <summary>
         /// Generates a new <see cref="ServerNodeIdentity"/> record and its private key

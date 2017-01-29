@@ -47,16 +47,20 @@ namespace Mystiko.Net
         /// <summary>
         /// Creates a new instance of a server
         /// </summary>
+        /// <param name="passive">A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only</param>
         /// <param name="serverNodeIdentityFactory">A function that returns a tuple of a <see cref="ServerNodeIdentity"/> and the private key of that identity as a byte array</param>
         /// <param name="serverChannelFactory">A function that returns a <see cref="IServerChannel"/> for listening for incoming connections</param>
         /// <param name="listenerPort">
         /// The port on which to listen for peer client connections.  By default, this is 5109
         /// </param>
         public Server(
+            bool passive = false,
             [CanBeNull] Func<Tuple<ServerNodeIdentity, byte[]>> serverNodeIdentityFactory = null,
             [CanBeNull] Func<IServerChannel> serverChannelFactory = null,
             int listenerPort = 5109)
         {
+            this.Passive = passive;
+
             // Load or create node identity
             using (var isoStore = IsolatedStorageFile.GetStore(IsolatedStorageScope.User | IsolatedStorageScope.Assembly, null, null))
             {
@@ -104,6 +108,11 @@ namespace Mystiko.Net
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only.
+        /// </summary>
+        public bool Passive { get; set; }
+
+        /// <summary>
         /// Places the server into a state where it listens for new connections
         /// </summary>
         /// <returns>A task that can be awaited while the operation completes</returns>
@@ -115,6 +124,7 @@ namespace Mystiko.Net
                 throw new ObjectDisposedException("Server");
             }
 
+            this._serverChannel.Passive = this.Passive;
             await this._serverChannel.StartAsync(this._acceptCancellationTokenSource.Token);
         }
 

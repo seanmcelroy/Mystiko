@@ -35,7 +35,7 @@ namespace Mystiko.Library.Tests.Net
         [TestMethod]
         public async Task Start()
         {
-            using (var server1 = new Server(() => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
+            using (var server1 = new Server(false, () => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
             {
                 Assert.IsNotNull(server1);
                 await server1.StartAsync();
@@ -47,12 +47,12 @@ namespace Mystiko.Library.Tests.Net
         [TestMethod]
         public async Task ConnectToPeerAsync()
         {
-            using (var server1 = new Server(() => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
+            using (var server1 = new Server(false, () => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
             {
                 Assert.IsNotNull(server1);
                 await server1.StartAsync();
 
-                using (var server2 = new Server(() => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any, 5108)))
+                using (var server2 = new Server(false, () => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any, 5108)))
                 {
                     Assert.IsNotNull(server2);
                     await server2.StartAsync();

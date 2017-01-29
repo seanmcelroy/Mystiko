@@ -107,6 +107,9 @@ namespace Mystiko.Net
         public ReadOnlyCollection<IClientChannel> Clients => new ReadOnlyCollection<IClientChannel>(this._clients.Select(c => (IClientChannel)c).ToList());
 
         /// <inheritdoc />
+        public bool Passive { get; set; }
+
+        /// <inheritdoc />
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             Logger.Info($"Listening for peers on {((IPEndPoint)this._listener.LocalEndpoint).Address}:{((IPEndPoint)this._listener.LocalEndpoint).Port}");
@@ -142,7 +145,7 @@ namespace Mystiko.Net
             this._acceptTask.Start();
 
             // Setup and start multicast receiver
-            await this._peerDiscovery.StartAsync(cancellationToken);
+            await this._peerDiscovery.StartAsync(this.Passive, cancellationToken);
         }
 
         /// <inheritdoc />

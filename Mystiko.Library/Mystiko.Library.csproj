@@ -69,8 +69,10 @@
     <Compile Include="Net\IClientChannel.cs" />
     <Compile Include="Net\IServerChannel.cs" />
     <Compile Include="Net\Messages\IMessage.cs" />
+    <Compile Include="Net\Messages\MessageType.cs" />
     <Compile Include="Net\Messages\NodeAnnounce.cs" />
     <Compile Include="Net\Messages\NodeHello.cs" />
+    <Compile Include="Net\Messages\PeerAnnounce.cs" />
     <Compile Include="Net\Server.cs" />
     <Compile Include="Net\ServerNodeIdentity.cs" />
     <Compile Include="Net\ServerNodeIdentityAndKey.cs" />

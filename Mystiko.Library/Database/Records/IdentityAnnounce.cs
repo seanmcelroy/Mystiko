@@ -85,7 +85,7 @@ namespace Mystiko.Database.Records
         /// <summary>
         /// Gets or sets the nonce value that when applied 
         /// </summary>
-        public long Nonce { get; set; }
+        public ulong Nonce { get; set; }
 
         /// <summary>
         /// Generates a new <see cref="IdentityAnnounce"/> record and its private key
@@ -141,7 +141,7 @@ namespace Mystiko.Database.Records
                 this.DateEpoch = br.ReadUInt32();
                 this.PublicKeyXBase64 = br.ReadString();
                 this.PublicKeyYBase64 = br.ReadString();
-                this.Nonce = br.ReadInt64();
+                this.Nonce = br.ReadUInt64();
             }
         }
 

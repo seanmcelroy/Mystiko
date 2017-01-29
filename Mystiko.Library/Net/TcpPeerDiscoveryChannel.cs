@@ -10,16 +10,18 @@
 namespace Mystiko.Net
 {
     using System;
-    using System.Linq;
+    using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Net;
     using System.Net.Sockets;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
     using log4net;
+
+    using Mystiko.Net.Messages;
 
     /// <summary>
     /// An out-of-band channel for transmitting and receiving information about peer discovery information
@@ -58,10 +60,10 @@ namespace Mystiko.Net
         /// The temporary storage queue of incoming peer discovery broadcast traffic
         /// </summary>
         [NotNull]
-        private readonly StringBuilder _multicastReceiveQueue = new StringBuilder();
+        private readonly Queue<byte> _multicastReceiveQueue = new Queue<byte>();
 
         /// <summary>
-        /// A transient threading lock object for handling incoming peer discovery broadcast traffic
+        /// The temporary storage queue of incoming peer discovery broadcast traffic
         /// </summary>
         [NotNull]
         private readonly object _multicastReceiveQueueLock = new object();
@@ -124,8 +126,7 @@ namespace Mystiko.Net
         [CanBeNull]
         public IPAddress PublicIPAddress { get; private set; }
 
-        /// <inheritdoc />
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(bool passive = false, CancellationToken cancellationToken = default(CancellationToken))
         {
             // First, we need to find out our public IP address
             if (!await this.FindPublicIPAddress(cancellationToken))
@@ -142,27 +143,74 @@ namespace Mystiko.Net
                 {
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        var x = await this._multicastUdpClient.ReceiveAsync();
-                        if (x.Buffer.Length > 0)
+                        var udpReceiveResult = await this._multicastUdpClient.ReceiveAsync();
+
+                        // Is this a message from myself?
+                        if (udpReceiveResult.RemoteEndPoint.Equals(this._multicastUdpClient.Client.LocalEndPoint))
                         {
-                            var results = Encoding.UTF8.GetString(x.Buffer);
+                            Logger.Warn("Receipved multicast loopback packet; ignoring.");
+                            continue;
+                        }
+
+                        if (udpReceiveResult.Buffer.Length > 0)
+                        {
                             lock (this._multicastReceiveQueueLock)
                             {
-                                this._multicastReceiveQueue.Append(results);
-                                var split = this._multicastReceiveQueue.ToString().Split('\0');
-                                if (split.Length > 1)
+                                foreach (var b in udpReceiveResult.Buffer)
                                 {
-                                    this._multicastReceiveQueue.Clear();
-                                    foreach (var s in split.Skip(1))
-                                        this._multicastReceiveQueue.AppendFormat("{0}\0", s);
+                                    this._multicastReceiveQueue.Enqueue(b);
+                                }
 
-                                    if (this._multicastReceiveQueue.Length > 1)
-                                        this._multicastReceiveQueue.Remove(this._multicastReceiveQueue.Length - 2, 1);
-                                    else
-                                        this._multicastReceiveQueue.Clear();
+                                var queueBufferCopy = this._multicastReceiveQueue.ToArray();
+                                if (queueBufferCopy.Length >= 5)
+                                {
+                                    // Read 4 bytes for payload length
+                                    var lengthNextMessage = BitConverter.ToInt32(queueBufferCopy, 0);
 
-                                    var receivedMessage = split[0];
-                                    throw new NotImplementedException($"What do I do with this? {receivedMessage}");
+                                    // If we don't have the whole message in our buffer, we need to receive more data.
+                                    if (queueBufferCopy.Length < lengthNextMessage + 1)
+                                        continue;
+
+                                    // Move a fully-formed message out of our queue and process it
+                                    var nextMessageBytes = new byte[lengthNextMessage + 1];
+
+                                    // Ignore the 4 bytes that comprise the length
+                                    var c = 0;
+                                    while (c < 4)
+                                    {
+                                        this._multicastReceiveQueue.Dequeue();
+                                        c++;
+                                    }
+
+                                    c = 0;
+                                    while (c < lengthNextMessage + 1)
+                                    {
+                                        nextMessageBytes[c] = this._multicastReceiveQueue.Dequeue();
+                                        c++;
+                                    }
+
+                                    // The message should end in the \0 terminator
+                                    Debug.Assert(nextMessageBytes[c - 1] == 0, "Message does not end in NUL terminator");
+
+                                    switch ((MessageType)nextMessageBytes[0])
+                                    {
+                                        case MessageType.PeerAnnounce:
+                                            var peerAnnounce = new PeerAnnounce();
+                                            try
+                                            {
+                                                peerAnnounce.FromPayload(nextMessageBytes);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Logger.Error($"Unable to parse peer announcement from {udpReceiveResult.RemoteEndPoint.Address}", ex);
+                                                continue;
+                                            }
+
+                                            Logger.Debug($"Peer announcement received from: {peerAnnounce.PublicIPAddress}(nonce@{peerAnnounce.Nonce})");
+                                            break;
+                                        default:
+                                            throw new InvalidOperationException($"Unknown message type {nextMessageBytes[0]}");
+                                    }
                                 }
                             }
                         }
@@ -188,12 +236,25 @@ namespace Mystiko.Net
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     Logger.Debug("Sending peer announcement");
-                    await this.SendAsync("HEY\0");
+                    await this.SendAsync(new PeerAnnounce
+                                             {
+                                                 PeerNetworkingProtocolVersion = 1,
+                                                 PublicIPAddress = this.PublicIPAddress,
+                                                 DateEpoch = this._serverIdentity.DateEpoch,
+                                                 PublicKeyX = this._serverIdentity.PublicKeyX,
+                                                 PublicKeyY = this._serverIdentity.PublicKeyY,
+                                                 Nonce = this._serverIdentity.Nonce
+                                             });
 
-                    Thread.Sleep(5000);
+                    Thread.Sleep(3 * 1000);
                 }
             });
-            this._multicastBroadcastTask.Start();
+
+            if (!passive)
+            {
+                Thread.Sleep(5000);
+                this._multicastBroadcastTask.Start();
+            }
         }
 
         /// <summary>
@@ -217,6 +278,7 @@ namespace Mystiko.Net
                     try
                     {
                         Logger.Debug($"Requesting IP address from remote source {source}");
+                        Debug.Assert(source != null, "source != null");
                         var myIp = await wc.DownloadStringTaskAsync(source);
                         if (string.IsNullOrWhiteSpace(myIp))
                         {
@@ -247,40 +309,6 @@ namespace Mystiko.Net
         }
 
         /// <summary>
-        /// Sends a multicast message to those who may be listening for peer broadcast messages
-        /// </summary>
-        /// <param name="message">The message to send</param>
-        public void Send([NotNull] string message)
-        {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
-
-            var endpoint = new IPEndPoint(this._multicastGroupAddress, this._multicastReceivePort);
-            var bytes = Encoding.UTF8.GetBytes(message);
-            this._multicastUdpClient.Send(bytes, bytes.Length, endpoint);
-        }
-
-        /// <summary>
-        /// Sends a multicast message to those who may be listening for peer broadcast messages
-        /// </summary>
-        /// <param name="message">The message to send</param>
-        /// <returns>A task that can be awaited while the operation completes</returns>
-        [NotNull]
-        public async Task SendAsync([NotNull] string message)
-        {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
-
-            var endpoint = new IPEndPoint(this._multicastGroupAddress, this._multicastReceivePort);
-            var bytes = Encoding.UTF8.GetBytes(message);
-            await this._multicastUdpClient.SendAsync(bytes, bytes.Length, endpoint);
-        }
-
-        /// <summary>
         /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -297,6 +325,43 @@ namespace Mystiko.Net
             }
 
             this._disposed = true;
+        }
+        
+        /// <summary>
+        /// Sends a multicast message to those who may be listening for peer broadcast messages
+        /// </summary>
+        /// <param name="message">The message to send</param>
+        /// <returns>A task that can be awaited while the operation completes</returns>
+        [NotNull]
+        private async Task SendAsync([NotNull] IMessage message)
+        {
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
+            var endpoint = new IPEndPoint(this._multicastGroupAddress, this._multicastReceivePort);
+            var payloadBytes = message.ToPayload();
+            if (payloadBytes.Length > 65507)
+            {
+                throw new InvalidOperationException("Payload is too large; would have caused UDP packet to fragment");
+            }
+
+            if (payloadBytes.Length > 8192)
+            {
+                Logger.Warn($"Sending a large packet across peer channel ({payloadBytes.Length} bytes); may be lost in transmission");
+            }
+
+            /* Wire format is:
+             * 4 bytes / 32 bit length of payload
+             * X bytes / payload(messageType+serializedValues)
+             * 1 byte  / NUL, last byte left blank as a separator/sanity check
+             */
+            var wrappedPayload = new byte[4 + payloadBytes.Length + 1];
+            Array.Copy(BitConverter.GetBytes(payloadBytes.Length), wrappedPayload, 4);
+            Array.Copy(payloadBytes, 0, wrappedPayload, 4, payloadBytes.Length);
+
+            await this._multicastUdpClient.SendAsync(wrappedPayload, wrappedPayload.Length, endpoint);
         }
     }
 }
