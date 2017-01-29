@@ -107,7 +107,8 @@ namespace Mystiko.Cryptography
         /// <param name="nonce">The nonce value that when applied the nonce value that when applied </param>
         /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
         /// <returns>A value indicating whether or not the <see cref="nonce"/> value has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
-        public static bool ValidateIdentity(uint dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, int targetDifficulty)
+        [NotNull]
+        public static ValidateIdentityResult ValidateIdentity(uint dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, int targetDifficulty)
         {
             byte[] identityBytes;
             using (var ms = new MemoryStream())
@@ -134,7 +135,7 @@ namespace Mystiko.Cryptography
                         i++;
                         if (i == targetDifficulty)
                         {
-                            return true;
+                            return new ValidateIdentityResult(true, candidateHashString);
                         }
                     }
                     else
@@ -144,7 +145,7 @@ namespace Mystiko.Cryptography
                 }
             }
 
-            return false;
+            return new ValidateIdentityResult(false, null);
         }
     }
 }

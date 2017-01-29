@@ -170,7 +170,7 @@ namespace Mystiko.Database.Records
                 throw new InvalidOperationException("PublicKeyY is not set");
             }
 
-            return HashUtility.ValidateIdentity(this.DateEpoch, this.PublicKeyX, this.PublicKeyY, this.Nonce, targetDifficulty);
+            return HashUtility.ValidateIdentity(this.DateEpoch, this.PublicKeyX, this.PublicKeyY, this.Nonce, targetDifficulty).DifficultyValidated;
         }
     }
 }

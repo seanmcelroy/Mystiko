@@ -53,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cryptography\HashUtility.cs" />
+    <Compile Include="Cryptography\ValidateIdentityResult.cs" />
     <Compile Include="Database\Records\IRecord.cs" />
     <Compile Include="Database\Records\RecordType.cs" />
     <Compile Include="Database\Records\IdentityAnnounce.cs" />
@@ -66,6 +67,7 @@
     <Compile Include="Messages\FileInfo.cs" />
     <Compile Include="Messages\FileManifest.cs" />
     <Compile Include="Net\Client.cs" />
+    <Compile Include="Net\DiscoveredPeer.cs" />
     <Compile Include="Net\IClientChannel.cs" />
     <Compile Include="Net\IServerChannel.cs" />
     <Compile Include="Net\Messages\IMessage.cs" />

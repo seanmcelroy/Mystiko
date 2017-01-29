@@ -12,6 +12,7 @@ namespace Mystiko.Net
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Net;
     using System.Net.Sockets;
     using System.Threading;
@@ -24,7 +25,6 @@ namespace Mystiko.Net
     using log4net;
 
     using Messages;
-    using System.Linq;
 
     /// <summary>
     /// An out-of-band channel for transmitting and receiving information about peer discovery information
@@ -129,6 +129,19 @@ namespace Mystiko.Net
         [CanBeNull]
         public IPAddress PublicIPAddress { get; private set; }
 
+        /// <summary>
+        /// Gets a dictionary of peers discovered through this <see cref="TcpPeerDiscoveryChannel"/>, keyed by the composite hash of the
+        /// node identity's components
+        /// </summary>
+        [NotNull]
+        internal Dictionary<string, DiscoveredPeer> DiscoveredPeers { get; private set; } = new Dictionary<string, DiscoveredPeer>();
+
+        /// <summary>
+        /// Starts the peer discovery process
+        /// </summary>
+        /// <param name="passive">A value indicating whether this peer should broadcast its presence, rather than simply listening for the presence of other nodes</param>
+        /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
+        /// <returns>A task that can be awaited while the operation completes</returns>
         public async Task StartAsync(bool passive = false, CancellationToken cancellationToken = default(CancellationToken))
         {
             // First, we need to find out our public IP address
@@ -209,11 +222,7 @@ namespace Mystiko.Net
                                                 continue;
                                             }
 
-                                            var handled = this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
-                                            if (handled)
-                                            {
-                                                Logger.Debug($"Peer announcement received from: {peerAnnounce.PublicIPAddress}(nonce@{peerAnnounce.Nonce})");
-                                            }
+                                            this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
 
                                             break;
                                         default:
@@ -243,7 +252,7 @@ namespace Mystiko.Net
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    Logger.Debug("Sending peer announcement");
+                    Logger.Debug($"Sending my peer announcement (...{this._serverIdentity.GetCompositeHash().Substring(3, 8)})");
                     await this.SendAsync(new PeerAnnounce
                                              {
                                                  PeerNetworkingProtocolVersion = 1,
@@ -302,7 +311,7 @@ namespace Mystiko.Net
         /// <param name="remoteEndpoint">The remote endpoint that sent the message</param>
         /// <param name="announcement">The message to handle</param>
         /// <returns>If the announcement was handled, true; otherwise, if it was ignored, false</returns>
-        private bool HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
+        private void HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
         {
             if (remoteEndpoint == null)
             {
@@ -338,18 +347,35 @@ namespace Mystiko.Net
             if (this._serverIdentity.DateEpoch == announcement.DateEpoch && this._serverIdentity.PublicKeyX.SequenceEqual(announcement.PublicKeyX) && this._serverIdentity.PublicKeyY.SequenceEqual(announcement.PublicKeyY) && this._serverIdentity.Nonce == announcement.Nonce)
             {
                 // Message from myself
-                return false;
+                return;
             }
 
             // Validate the presented identity hashes out
-            var valid = HashUtility.ValidateIdentity(announcement.DateEpoch.Value, announcement.PublicKeyX, announcement.PublicKeyY, announcement.Nonce.Value, 3);
-            if (!valid)
+            var difficultyTarget = 3;
+            var result = HashUtility.ValidateIdentity(announcement.DateEpoch.Value, announcement.PublicKeyX, announcement.PublicKeyY, announcement.Nonce.Value, difficultyTarget);
+            if (!result.DifficultyValidated)
             {
                 Logger.Warn($"Unverifiable hash in announcement from {remoteEndpoint.Address}");
-                return false;
+                return;
             }
 
-            return true;
+            Debug.Assert(result.CompositeHash != null, "result.CompositeHash != null");
+            if (!this.DiscoveredPeers.ContainsKey(result.CompositeHash))
+            {
+                Logger.Debug($"Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
+
+                this.DiscoveredPeers.Add(
+                    result.CompositeHash, 
+                    new DiscoveredPeer(
+                        new ServerNodeIdentity
+                        {
+                            DateEpoch = announcement.DateEpoch.Value,
+                            PublicKeyX = announcement.PublicKeyX,
+                            PublicKeyY = announcement.PublicKeyY,
+                            Nonce = announcement.Nonce.Value
+                        }, 
+                        remoteEndpoint));
+            }
         }
 
         /// <summary>

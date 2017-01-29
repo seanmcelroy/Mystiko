@@ -159,5 +159,15 @@ namespace Mystiko.Net
 
             return new Tuple<ServerNodeIdentity, byte[]>(ret, privD.ToByteArray());
         }
+
+        /// <summary>
+        /// Returns the composite hash of the components of this identity
+        /// </summary>
+        /// <returns>The composite hash of the components of this identity</returns>
+        [NotNull, Pure]
+        public string GetCompositeHash()
+        {
+            return HashUtility.ValidateIdentity(this.DateEpoch, this.PublicKeyX, this.PublicKeyY, this.Nonce, 1).CompositeHash;
+        }
     }
 }

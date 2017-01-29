@@ -1,4 +1,13 @@
-﻿namespace Mystiko.Console
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Program.cs" company="Sean McElroy">
+//   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
+// </copyright>
+// <summary>
+//   Main entry point for network node server process
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mystiko.Console
 {
     using System;
     using System.Diagnostics;
@@ -8,8 +17,14 @@
 
     using Net;
 
+    /// <summary>
+    /// Main entry point for network node server process
+    /// </summary>
     public static class Program
     {
+        /// <summary>
+        /// Main entry point for network node server process
+        /// </summary>
         public static void Main()
         {
             Console.WriteLine("Mystiko.Node\r\n");
