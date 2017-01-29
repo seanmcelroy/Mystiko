@@ -10,6 +10,8 @@
 namespace Mystiko.Cryptography
 {
     using System;
+    using System.Diagnostics;
+    using System.IO;
     using System.Security.Cryptography;
 
     using JetBrains.Annotations;
@@ -94,6 +96,55 @@ namespace Mystiko.Cryptography
             }
 
             throw new InvalidOperationException($"Unable to find any hash that returns {zeroCount} zeros");
+        }
+
+        /// <summary>
+        /// Validates the nonce of the identity matches the <paramref name="targetDifficulty"/> number of leading zeros required
+        /// </summary>
+        /// <param name="dateEpoch">The date the identity was created, expressed in the number of seconds since the epoch (January 1, 1970)</param>
+        /// <param name="publicKeyX">The value of the public key X-value for this identity</param>
+        /// <param name="publicKeyY">The value of the public key Y-value for this identity</param>
+        /// <param name="nonce">The nonce value that when applied the nonce value that when applied </param>
+        /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
+        /// <returns>A value indicating whether or not the <see cref="nonce"/> value has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
+        public static bool ValidateIdentity(uint dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, int targetDifficulty)
+        {
+            byte[] identityBytes;
+            using (var ms = new MemoryStream())
+            using (var bw = new BinaryWriter(ms))
+            {
+                bw.Write(dateEpoch);
+                bw.Write(publicKeyX);
+                bw.Write(publicKeyY);
+                bw.Write(nonce);
+                identityBytes = ms.ToArray();
+            }
+
+            using (var sha = SHA512.Create())
+            {
+                Debug.Assert(sha != null, "sha != null");
+                var candidateHash = sha.ComputeHash(identityBytes);
+                var candidateHashString = BitConverter.ToString(candidateHash).Replace("-", string.Empty);
+
+                var i = 0;
+                foreach (var c in candidateHashString)
+                {
+                    if (c == '0')
+                    {
+                        i++;
+                        if (i == targetDifficulty)
+                        {
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

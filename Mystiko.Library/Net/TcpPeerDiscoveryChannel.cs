@@ -21,6 +21,7 @@ namespace Mystiko.Net
 
     using log4net;
 
+    using Mystiko.Cryptography;
     using Mystiko.Net.Messages;
 
     /// <summary>
@@ -207,6 +208,7 @@ namespace Mystiko.Net
                                             }
 
                                             Logger.Debug($"Peer announcement received from: {peerAnnounce.PublicIPAddress}(nonce@{peerAnnounce.Nonce})");
+                                            HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
                                             break;
                                         default:
                                             throw new InvalidOperationException($"Unknown message type {nextMessageBytes[0]}");
@@ -258,14 +260,33 @@ namespace Mystiko.Net
         }
 
         /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            if (!this._disposed)
+            {
+                // Dispose managed resources.
+                this._multicastUdpClient.Dispose();
+                this._multicastReceiveTask?.Dispose();
+                this._multicastBroadcastTask?.Dispose();
+
+                // There are no unmanaged resources to release, but
+                // if we add them, they need to be released here.
+            }
+
+            this._disposed = true;
+        }
+
+        /// <summary>
         /// Determines the public Internet IP address for this node as it would appear to remote nodes in other networks
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A value indicating whether an address was located and set in the <see cref="PublicIPAddress"/> property</returns>
-        public async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
+        internal async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
         {
-            var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me" };
-            
+            var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me", @"http://ifconfig.me/ip" };
+
             foreach (var source in sources)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -309,24 +330,53 @@ namespace Mystiko.Net
         }
 
         /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// Handle a <see cref="PeerAnnounce"/> message
         /// </summary>
-        public void Dispose()
+        /// <param name="remoteEndpoint">The remote endpoint that sent the message</param>
+        /// <param name="announcement">The message to handle</param>
+        private void HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
         {
-            if (!this._disposed)
+            if (remoteEndpoint == null)
             {
-                // Dispose managed resources.
-                this._multicastUdpClient.Dispose();
-                this._multicastReceiveTask?.Dispose();
-                this._multicastBroadcastTask?.Dispose();
-
-                // There are no unmanaged resources to release, but
-                // if we add them, they need to be released here.
+                throw new ArgumentNullException(nameof(remoteEndpoint));
             }
 
-            this._disposed = true;
+            if (announcement == null)
+            {
+                throw new ArgumentNullException(nameof(announcement));
+            }
+
+            if (!announcement.DateEpoch.HasValue)
+            {
+                throw new ArgumentException("DateEpoch value not supplied", nameof(announcement));
+            }
+
+            if (announcement.PublicKeyX == null)
+            {
+                throw new ArgumentException("PublicKeyX value not supplied", nameof(announcement));
+            }
+
+            if (announcement.PublicKeyY == null)
+            {
+                throw new ArgumentException("PublicKeyY value not supplied", nameof(announcement));
+            }
+
+            if (!announcement.Nonce.HasValue)
+            {
+                throw new ArgumentException("Nonce value not supplied", nameof(announcement));
+            }
+
+            // Validate the presented identity hashes out
+            var valid = HashUtility.ValidateIdentity(announcement.DateEpoch.Value, announcement.PublicKeyX, announcement.PublicKeyY, announcement.Nonce.Value, 3);
+            if (!valid)
+            {
+                Logger.Warn($"Unverifiable hash in announcement from {remoteEndpoint.Address}");
+                return;
+            }
+
+
         }
-        
+
         /// <summary>
         /// Sends a multicast message to those who may be listening for peer broadcast messages
         /// </summary>

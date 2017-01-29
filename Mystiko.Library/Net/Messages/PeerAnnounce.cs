@@ -43,13 +43,13 @@ namespace Mystiko.Net.Messages
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
-        [NotNull]
+        [CanBeNull]
         public byte[] PublicKeyX { get; set; }
 
         /// <summary>
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
-        [NotNull]
+        [CanBeNull]
         public byte[] PublicKeyY { get; set; }
 
         /// <summary>

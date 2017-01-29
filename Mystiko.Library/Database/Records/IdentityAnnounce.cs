@@ -15,11 +15,11 @@
 namespace Mystiko.Database.Records
 {
     using System;
-    using System.Diagnostics;
     using System.IO;
-    using System.Security.Cryptography;
-
+    
     using JetBrains.Annotations;
+
+    using Cryptography;
 
     /// <summary>
     /// A record that announces a new identity on the network.  Identities may or may not ever
@@ -83,7 +83,7 @@ namespace Mystiko.Database.Records
         }
 
         /// <summary>
-        /// Gets or sets the nonce value that when applied 
+        /// Gets or sets the nonce value that when applied to the composite value that is hashed has a certain number of leading zeros in the hash
         /// </summary>
         public ulong Nonce { get; set; }
 
@@ -154,42 +154,7 @@ namespace Mystiko.Database.Records
         /// <returns>A value indicating whether or not the <see cref="Nonce"/> value has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
         public bool Verify(int targetDifficulty)
         {
-            byte[] identityBytes;
-            using (var ms = new MemoryStream())
-            using (var bw = new BinaryWriter(ms))
-            {
-                bw.Write(this.DateEpoch);
-                bw.Write(this.PublicKeyX);
-                bw.Write(this.PublicKeyY);
-                bw.Write(this.Nonce);
-                identityBytes = ms.ToArray();
-            }
-
-            using (var sha = SHA512.Create())
-            {
-                Debug.Assert(sha != null, "sha != null");
-                var candidateHash = sha.ComputeHash(identityBytes);
-                var candidateHashString = BitConverter.ToString(candidateHash).Replace("-", string.Empty);
-
-                var i = 0;
-                foreach (var c in candidateHashString)
-                {
-                    if (c == '0')
-                    {
-                        i++;
-                        if (i == targetDifficulty)
-                        {
-                            return true;
-                        }
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return false;
+            return HashUtility.ValidateIdentity(this.DateEpoch, this.PublicKeyX, this.PublicKeyY, this.Nonce, targetDifficulty);
         }
     }
 }
