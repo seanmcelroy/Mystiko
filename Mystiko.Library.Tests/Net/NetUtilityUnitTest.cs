@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="NetUtilityUnitTest.cs" company="Sean McElroy">
 //   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
 // </copyright>
@@ -27,7 +27,7 @@ namespace Mystiko.Library.Tests.Net
         [TestMethod]
         public void FindPublicIPAddress()
         {
-            var foundTask = NetUtility.FindPublicIPAddress();
+            var foundTask = NetUtility.FindPublicIPAddressAsync();
             if (!foundTask.Wait(10000))
                 Assert.Fail("Unable to find a public IP address within 10 seconds.  Is this testing device not able to access the Internet on HTTP/HTTPS ports?");
 

@@ -45,11 +45,11 @@ namespace Mystiko.Net
         /// <summary>
         /// Initiates a connection from this server to a peer node
         /// </summary>
-        /// <param name="addressInformation">The address information for how to connect to the peer, as interpreted by the <see cref="IServerChannel"/> implementation</param>
+        /// <param name="endpoint">The endpoint information for how to connect to the peer, as interpreted by the <see cref="IServerChannel"/> implementation</param>
         /// <param name="cancellationToken">A cancellation token to stop attempting to connect to the peer</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        [NotNull, ItemNotNull]
-        Task<IClientChannel> ConnectToPeerAsync([NotNull] dynamic addressInformation, CancellationToken cancellationToken);
+        [NotNull, ItemCanBeNull]
+        Task<IClientChannel> ConnectToPeerAsync([NotNull] IPEndPoint endpoint, CancellationToken cancellationToken);
 
         /// <summary>
         /// Attempts to discover peers that the server may be able to connect to

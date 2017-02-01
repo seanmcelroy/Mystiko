@@ -54,11 +54,17 @@ namespace Mystiko.Net
         private bool _disposed;
 
         /// <summary>
-        /// Creates a new instance of a server
+        /// Initializes a new instance of the <see cref="Server"/> class.
         /// </summary>
-        /// <param name="passive">A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only</param>
-        /// <param name="serverNodeIdentityFactory">A function that returns a tuple of a <see cref="ServerNodeIdentity"/> and the private key of that identity as a byte array</param>
-        /// <param name="serverChannelFactory">A function that returns a <see cref="IServerChannel"/> for listening for incoming connections</param>
+        /// <param name="passive">
+        /// A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only
+        /// </param>
+        /// <param name="serverNodeIdentityFactory">
+        /// A function that returns a tuple of a <see cref="ServerNodeIdentity"/> and the private key of that identity as a byte array
+        /// </param>
+        /// <param name="serverChannelFactory">
+        /// A function that returns a <see cref="IServerChannel"/> for listening for incoming connections
+        /// </param>
         /// <param name="listenerPort">
         /// The port on which to listen for peer client connections.  By default, this is 5109
         /// </param>
@@ -155,19 +161,19 @@ namespace Mystiko.Net
         /// <summary>
         /// Initiates a connection from this server to a peer node
         /// </summary>
-        /// <param name="addressInformation">The address information for how to connect to the peer, as interpreted by the <see cref="IServerChannel"/> implementation</param>
+        /// <param name="endpoint">The endpoint information for how to connect to the peer, as interpreted by the <see cref="IServerChannel"/> implementation</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        [NotNull]
-        public async Task ConnectToPeerAsync([NotNull] object addressInformation)
+        [NotNull, ItemCanBeNull]
+        public async Task<IClientChannel> ConnectToPeerAsync([NotNull] IPEndPoint endpoint)
         {
             if (this._disposed)
             {
                 throw new ObjectDisposedException("Server");
             }
 
-            if (addressInformation == null)
+            if (endpoint == null)
             {
-                throw new ArgumentNullException(nameof(addressInformation));
+                throw new ArgumentNullException(nameof(endpoint));
             }
 
             if (this._disposed)
@@ -175,7 +181,7 @@ namespace Mystiko.Net
                 throw new ObjectDisposedException("Server");
             }
 
-            await this._serverChannel.ConnectToPeerAsync(addressInformation, this._acceptCancellationTokenSource.Token);
+            return await this._serverChannel.ConnectToPeerAsync(endpoint, this._acceptCancellationTokenSource.Token);
         }
 
         /// <summary>
@@ -206,7 +212,7 @@ namespace Mystiko.Net
         {
             // Determine if this instance if behind a firewall.  Open a random port, and try to access it.
             Logger.Debug("Determining whether this node is behind a firewall...");
-            var publicIp = await NetUtility.FindPublicIPAddress(cancellationToken);
+            var publicIp = await NetUtility.FindPublicIPAddressAsync(cancellationToken);
             if (publicIp == null)
                 return null;
 

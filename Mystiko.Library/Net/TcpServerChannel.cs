@@ -49,7 +49,7 @@ namespace Mystiko.Net
         /// The list of connected client peers
         /// </summary>
         [NotNull]
-        private readonly List<TcpClientChannel> _clients = new List<TcpClientChannel>();
+        private readonly List<IClientChannel> _clients = new List<IClientChannel>();
 
         [NotNull]
         private readonly TcpPeerDiscoveryChannel _peerDiscovery;
@@ -100,6 +100,17 @@ namespace Mystiko.Net
 
             // Setup multicast UDP for local peer discovery
             this._peerDiscovery = new TcpPeerDiscoveryChannel(serverIdentity, multicastGroupAddress ?? IPAddress.Parse("224.0.23.191"), multicastReceivePort);
+            this._peerDiscovery.RegisterPeerDiscoveryHandler(async dp =>
+                {
+                    // We found a peer!
+                    Debug.Assert(dp != null, "dp != null");
+                    Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Peer discovered {dp.NodeIdentity.GetCompositeHash().Substring(3, 8)} at {dp.DiscoveryEndpoint.Address}:{dp.DiscoveryEndpoint.Port}");
+
+                    // Sleep between 1 and 10 seconds for variability if two nodes start at the same time
+                    Thread.Sleep(new Random(Environment.TickCount).Next(1000, 10000));
+                    var client = await this.ConnectToPeerAsync(dp.DiscoveryEndpoint);
+                    this._clients.Add(client);
+                });
         }
 
         /// <inheritdoc />
@@ -148,19 +159,26 @@ namespace Mystiko.Net
         }
 
         /// <inheritdoc />
-        public async Task<IClientChannel> ConnectToPeerAsync(dynamic addressInformation, CancellationToken cancellationToken)
+        public async Task<IClientChannel> ConnectToPeerAsync(IPEndPoint endpoint, CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (addressInformation == null)
+            if (endpoint == null)
             {
-                throw new ArgumentNullException(nameof(addressInformation));
+                throw new ArgumentNullException(nameof(endpoint));
             }
 
-            IPAddress address = addressInformation.address;
-            int port = addressInformation.port;
-
             var tcpClient = new TcpClient();
-            await tcpClient.ConnectAsync(address, port);
-            return new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken);
+            Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connecting to peer {endpoint.Address}:{endpoint.Port}...");
+            try
+            {
+                await tcpClient.ConnectAsync(endpoint.Address, endpoint.Port);
+                Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connected to peer {endpoint.Address}:{endpoint.Port}");
+                return new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken);
+            }
+            catch (SocketException sex)
+            {
+                Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Unable to connect to {endpoint.Address}:{endpoint.Port}: {sex.Message} ({sex.ErrorCode})");
+                return null;
+            }
         }
 
         /// <inheritdoc />

@@ -48,7 +48,7 @@ namespace Mystiko.Net
         [NotNull]
         private List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
 
-        public TcpClientChannel([NotNull] ServerNodeIdentity serverIdentity, [NotNull] TcpClient client, CancellationToken serverCancellationToken)
+        public TcpClientChannel([NotNull] ServerNodeIdentity serverIdentity, [NotNull] TcpClient client, CancellationToken serverCancellationToken = default(CancellationToken))
         {
             if (serverIdentity == null)
             {

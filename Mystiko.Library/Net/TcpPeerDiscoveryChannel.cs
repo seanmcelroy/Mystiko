@@ -134,7 +134,13 @@ namespace Mystiko.Net
         /// node identity's components
         /// </summary>
         [NotNull]
-        internal Dictionary<string, DiscoveredPeer> DiscoveredPeers { get; private set; } = new Dictionary<string, DiscoveredPeer>();
+        private Dictionary<string, DiscoveredPeer> DiscoveredPeers { get; } = new Dictionary<string, DiscoveredPeer>();
+
+        /// <summary>
+        /// Gets a list of handlers that receive notifications when peers are discovered
+        /// </summary>
+        [NotNull]
+        private List<Action<DiscoveredPeer>> DiscoveredPeerHandlers { get; } = new List<Action<DiscoveredPeer>>();
 
         /// <summary>
         /// Starts the peer discovery process
@@ -252,7 +258,7 @@ namespace Mystiko.Net
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    Logger.Debug($"Sending my peer announcement (...{this._serverIdentity.GetCompositeHash().Substring(3, 8)})");
+                    Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
                     await this.SendAsync(new PeerAnnounce
                                              {
                                                  PeerNetworkingProtocolVersion = 1,
@@ -294,13 +300,27 @@ namespace Mystiko.Net
         }
 
         /// <summary>
+        /// Registers a handler that receives notifications when new peers are discovered
+        /// </summary>
+        /// <param name="handler">The handler for the newly discovered <see cref="DiscoveredPeer"/></param>
+        public void RegisterPeerDiscoveryHandler([NotNull] Action<DiscoveredPeer> handler)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+
+            this.DiscoveredPeerHandlers.Add(handler);
+        }
+
+        /// <summary>
         /// Determines the public Internet IP address for this node as it would appear to remote nodes in other networks
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A value indicating whether an address was located and set in the <see cref="PublicIPAddress"/> property</returns>
         internal async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
         {
-            var publicIp = await NetUtility.FindPublicIPAddress(cancellationToken);
+            var publicIp = await NetUtility.FindPublicIPAddressAsync(cancellationToken);
             this.PublicIPAddress = publicIp;
             return publicIp != null;
         }
@@ -310,7 +330,6 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="remoteEndpoint">The remote endpoint that sent the message</param>
         /// <param name="announcement">The message to handle</param>
-        /// <returns>If the announcement was handled, true; otherwise, if it was ignored, false</returns>
         private void HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
         {
             if (remoteEndpoint == null)
@@ -364,17 +383,23 @@ namespace Mystiko.Net
             {
                 Logger.Debug($"Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
 
-                this.DiscoveredPeers.Add(
-                    result.CompositeHash, 
-                    new DiscoveredPeer(
-                        new ServerNodeIdentity
-                        {
-                            DateEpoch = announcement.DateEpoch.Value,
-                            PublicKeyX = announcement.PublicKeyX,
-                            PublicKeyY = announcement.PublicKeyY,
-                            Nonce = announcement.Nonce.Value
-                        }, 
-                        remoteEndpoint));
+                var discoveredPeer = new DiscoveredPeer(
+                    new ServerNodeIdentity
+                    {
+                        DateEpoch = announcement.DateEpoch.Value,
+                        PublicKeyX = announcement.PublicKeyX,
+                        PublicKeyY = announcement.PublicKeyY,
+                        Nonce = announcement.Nonce.Value
+                    }, 
+                    remoteEndpoint);
+
+                this.DiscoveredPeers.Add(result.CompositeHash, discoveredPeer);
+
+                foreach (var handler in this.DiscoveredPeerHandlers)
+                {
+                    Debug.Assert(handler != null, "handler != null");
+                    handler(discoveredPeer);
+                }
             }
         }
 

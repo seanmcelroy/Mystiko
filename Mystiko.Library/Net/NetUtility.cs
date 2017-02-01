@@ -12,6 +12,7 @@ namespace Mystiko.Net
     using System;
     using System.Diagnostics;
     using System.Net;
+    using System.Net.Sockets;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -27,7 +28,7 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpPeerDiscoveryChannel));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(NetUtility));
 
         /// <summary>
         /// Determines the public Internet IP address for this node as it would appear to remote nodes in other networks
@@ -35,7 +36,7 @@ namespace Mystiko.Net
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>The public Internet IP address for this node as it would appear to remote nodes in other networks if it could be determined; otherwise, null.</returns>
         [NotNull, ItemCanBeNull, Pure]
-        internal static async Task<IPAddress> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
+        internal static async Task<IPAddress> FindPublicIPAddressAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me", @"http://ifconfig.me/ip" };
 
@@ -78,6 +79,33 @@ namespace Mystiko.Net
 
             Logger.Warn($"Unable to find public IP address after querying {sources.Length} sources");
             return null;
+        }
+
+        public static async Task StartHolePunchRendezvousListener([NotNull] IPAddress ipAddress, int port = 5109, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (ipAddress == null)
+            {
+                throw new ArgumentNullException(nameof(ipAddress));
+            }
+
+            var listener = new TcpListener(ipAddress, port)
+                               {
+                                   ExclusiveAddressUse = false
+                               };
+
+            listener.Start();
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var tcpClient = await listener.AcceptTcpClientAsync();
+                Debug.Assert(tcpClient != null, "tcpClient != null");
+                var stream = tcpClient.GetStream();
+                using (var ctsRead = new CancellationTokenSource(5000))
+                {
+                    var bytesRead = new byte[64 * 1024 * 1024];
+                    var bytesReadLength = stream.ReadAsync(bytesRead, 0, bytesRead.Length, ctsRead.Token);
+                    
+                }
+            }
         }
     }
 }
