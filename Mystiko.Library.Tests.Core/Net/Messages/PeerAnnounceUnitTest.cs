@@ -12,20 +12,19 @@ namespace Mystiko.Library.Tests.Net.Messages
     using System;
     using System.Net;
 
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-
     using Mystiko.Net.Messages;
-    
+
+    using Xunit;
+
     /// <summary>
     /// Unit tests for the <see cref="PeerAnnounce"/> class
     /// </summary>
-    [TestClass]
     public class PeerAnnounceUnitTest
     {
         /// <summary>
         /// Converts the record to a block chain payload
         /// </summary>
-        [TestMethod]
+        [Fact]
         public void ToWire()
         {
             var na = new PeerAnnounce
@@ -39,13 +38,13 @@ namespace Mystiko.Library.Tests.Net.Messages
             };
 
             var ret = na.ToPayload();
-            Assert.IsNotNull(ret);
+            Assert.NotNull(ret);
         }
 
         /// <summary>
         /// Hydrates the record from a block chain payload
         /// </summary>
-        [TestMethod]
+        [Fact]
         public void FromWire()
         {
             var pa = new PeerAnnounce
@@ -59,14 +58,14 @@ namespace Mystiko.Library.Tests.Net.Messages
             };
 
             var ret = pa.ToPayload();
-            Assert.IsNotNull(ret);
+            Assert.NotNull(ret);
 
             var rebuilt = new PeerAnnounce();
             rebuilt.FromPayload(ret);
 
-            Assert.AreEqual(pa.PeerNetworkingProtocolVersion, rebuilt.PeerNetworkingProtocolVersion);
-            Assert.IsNotNull(pa.PublicIPAddress);
-            Assert.AreEqual(pa.PublicIPAddress, rebuilt.PublicIPAddress);
+            Assert.Equal(pa.PeerNetworkingProtocolVersion, rebuilt.PeerNetworkingProtocolVersion);
+            Assert.NotNull(pa.PublicIPAddress);
+            Assert.Equal(pa.PublicIPAddress, rebuilt.PublicIPAddress);
         }
     }
 }
