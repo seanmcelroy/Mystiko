@@ -46,14 +46,21 @@ namespace Mystiko.Node
             var rep = LogManager.CreateRepository(Assembly.GetEntryAssembly(), typeof(Hierarchy));
             XmlConfigurator.Configure(rep, log4NetConfig["log4net"]);
             var logger = LogManager.GetLogger(typeof(Program));
-
             Debug.Assert(logger != null, "logger != null");
 
+            logger.Info("Creating node(s)...");
             using (var node1 = new Node { Tag = "#1" })
             using (var node2 = new Node(listenerPort: 5108) { Tag = "#2" })
             {
                 Task.Run(async () => { await node1.StartAsync(); });
                 Task.Run(async () => { await node2.StartAsync(); });
+
+                Task.Run(
+                    async () =>
+                        {
+                            await node1.InsertFileAsync(
+                                new FileInfo(@"C:\Users\smcelroy\Downloads\Git-2.11.0-64-bit.exe"));
+                        });
 
                 Console.WriteLine("Press ENTER to terminate all nodes");
                 Console.ReadLine();

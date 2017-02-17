@@ -3,7 +3,7 @@
 //   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
 // </copyright>
 // <summary>
-//   The result of a call to <see cref="HashUtility.ValidateIdentity(<see cref="System.UInt32"/>, byte[], byte[], <see cref="System.UInt64"/>, int)" />
+//   The result of a call to ValidateIdentity
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
