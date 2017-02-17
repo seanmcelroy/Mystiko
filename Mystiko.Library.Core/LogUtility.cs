@@ -46,7 +46,7 @@ namespace Mystiko
             [System.Runtime.CompilerServices.CallerLineNumber] int callerLineNumber = 0,
             [CanBeNull, System.Runtime.CompilerServices.CallerMemberName] string callerMemberName = null)
         {
-            log?.Logger?.Log(new LoggingEvent(
+            log.Logger?.Log(new LoggingEvent(
                     new LoggingEventData
                     {
                         LocationInfo =
@@ -80,7 +80,7 @@ namespace Mystiko
             [System.Runtime.CompilerServices.CallerLineNumber] int callerLineNumber = 0,
             [CanBeNull, System.Runtime.CompilerServices.CallerMemberName] string callerMemberName = null)
         {
-            log?.Logger?.Log(new LoggingEvent(
+            log.Logger?.Log(new LoggingEvent(
                     new LoggingEventData
                         {
                             LocationInfo =
