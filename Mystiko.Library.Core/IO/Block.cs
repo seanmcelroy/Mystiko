@@ -15,9 +15,14 @@
         public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last64Bytes)
         {
             if (hash == null)
+            {
                 throw new ArgumentNullException(nameof(hash));
+            }
+
             if (last64Bytes == null)
+            {
                 throw new ArgumentNullException(nameof(last64Bytes));
+            }
 
             this.Path = path;
             this.FullHash = hash;

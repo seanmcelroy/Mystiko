@@ -18,7 +18,6 @@ namespace Mystiko.Node
 
     using log4net;
     using log4net.Config;
-    using log4net.Repository;
     using log4net.Repository.Hierarchy;
 
     using Net;
@@ -36,14 +35,14 @@ namespace Mystiko.Node
             Console.WriteLine("Mystiko.Node\r\n");
 
             // Setup LOG4NET
-            var log4netConfig = new XmlDocument();
+            var log4NetConfig = new XmlDocument();
             using (var reader = new StreamReader(new FileStream("log4net.config", FileMode.Open, FileAccess.Read)))
             {
-                log4netConfig.Load(reader);
+                log4NetConfig.Load(reader);
             }
 
             var rep = LogManager.CreateRepository(Assembly.GetEntryAssembly(), typeof(Hierarchy));
-            XmlConfigurator.Configure(rep, log4netConfig["log4net"]);
+            XmlConfigurator.Configure(rep, log4NetConfig["log4net"]);
             var logger = LogManager.GetLogger(typeof(Program));
 
             Debug.Assert(logger != null, "logger != null");

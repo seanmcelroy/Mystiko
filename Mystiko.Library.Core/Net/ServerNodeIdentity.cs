@@ -116,6 +116,7 @@ namespace Mystiko.Net
             };
 
             // Elliptic Curve
+            // ReSharper disable once StringLiteralTypo
             var ec = SecNamedCurves.GetByName("secp256k1");
             Debug.Assert(ec != null, "ec != null");
             var domainParams = new ECDomainParameters(ec.Curve, ec.G, ec.N, ec.H);

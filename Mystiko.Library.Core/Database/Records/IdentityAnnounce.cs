@@ -77,7 +77,9 @@ namespace Mystiko.Database.Records
             get
             {
                 if (this.PublicKeyY == null)
+                {
                     throw new InvalidOperationException("PublicKeyY is not set");
+                }
 
                 return Convert.ToBase64String(this.PublicKeyY);
             }
@@ -104,6 +106,7 @@ namespace Mystiko.Database.Records
         /// This key pair is an ecliptic-curve (secp256k1) key pair.
         /// </remarks>
         // ReSharper disable once StyleCop.SA1650
+        [Pure]
         public static Tuple<IdentityAnnounce, byte[]> Generate(int targetDifficulty)
         {
             var identity = Net.ServerNodeIdentity.Generate(targetDifficulty);

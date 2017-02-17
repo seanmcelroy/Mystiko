@@ -114,7 +114,7 @@ namespace Mystiko.Net
         }
 
         /// <inheritdoc />
-        public ReadOnlyCollection<IClientChannel> Clients => new ReadOnlyCollection<IClientChannel>(this._clients.Select(c => (IClientChannel)c).ToList());
+        public ReadOnlyCollection<IClientChannel> Clients => new ReadOnlyCollection<IClientChannel>(this._clients.ToList());
 
         /// <inheritdoc />
         public bool Passive { get; set; }

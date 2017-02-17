@@ -909,7 +909,7 @@ namespace Mystiko.IO
                             i++;
 
                             var fileBytes = new byte[blockLength.Value];
-                            await fileStream.ReadAsync(fileBytes, 0, blockLength.Value);
+                            await fileStream.ReadAsync(fileBytes, 0, blockLength.Value, cancellationToken);
 
                             using (var msBlock = new MemoryStream(blockLength.Value))
                             using (var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write))

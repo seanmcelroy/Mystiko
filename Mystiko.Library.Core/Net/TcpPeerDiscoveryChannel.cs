@@ -170,7 +170,7 @@ namespace Mystiko.Net
                         // Is this a message from myself?
                         if (udpReceiveResult.RemoteEndPoint.Equals(this._multicastUdpClient.Client.LocalEndPoint))
                         {
-                            Logger.Warn("Receipved multicast loopback packet; ignoring.");
+                            Logger.Warn("Received multicast loopback packet; ignoring.");
                             continue;
                         }
 

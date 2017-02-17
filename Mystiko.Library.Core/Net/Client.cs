@@ -26,6 +26,9 @@ namespace Mystiko.Net
         /// </summary>
         private const int BufferSize = 1048576;
 
+        /// <summary>
+        /// The <see cref="TcpClient"/> for communicating with the remote host
+        /// </summary>
         private readonly TcpClient _client;
 
         private readonly byte[] _rawInputBuffer = new byte[BufferSize];
@@ -34,6 +37,17 @@ namespace Mystiko.Net
 
         private Task _receiveTask;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Client"/> class.
+        /// </summary>
+        /// <param name="client">
+        /// The <see cref="TcpClient"/> for communicating with the remote host
+        /// </param>
+        /// <param name="serverCancellationToken">
+        /// The server cancellation token.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// </exception>
         internal Client(TcpClient client, CancellationToken serverCancellationToken)
         {
             if (client == null)

@@ -36,7 +36,7 @@ namespace Mystiko.PackageManager
         /// <param name="args">Command line arguments</param>
         public static void Main(string[] args)
         {
-            CommandLine.Parser.Default.ParseArguments<CommandLineOptions>(args)
+            Parser.Default.ParseArguments<CommandLineOptions>(args)
                 .WithNotParsed(
                     errors =>
                         {

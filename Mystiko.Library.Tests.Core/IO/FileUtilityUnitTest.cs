@@ -37,10 +37,9 @@ namespace Mystiko.Library.Tests.IO
                 // XUNIT does not support - Assert.Inconclusive($"Test file actually exists, but should not: {fi.FullName}");
                 return;
             }
-            else
-            {
-                await Assert.ThrowsAsync<FileNotFoundException>(async () => await FileUtility.ChunkFileViaOutputDirectory(fi, fi.Directory, true, true, true));
-            }
+
+            await Assert.ThrowsAsync<FileNotFoundException>(
+                async () => await FileUtility.ChunkFileViaOutputDirectory(fi, fi.Directory, true, true, true));
         }
 
         [Fact]
