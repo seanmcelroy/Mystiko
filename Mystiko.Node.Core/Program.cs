@@ -20,6 +20,8 @@ namespace Mystiko.Node
     using log4net.Config;
     using log4net.Repository.Hierarchy;
 
+    using Mystiko.Node.Core;
+
     using Net;
 
     /// <summary>
@@ -46,19 +48,15 @@ namespace Mystiko.Node
             var logger = LogManager.GetLogger(typeof(Program));
 
             Debug.Assert(logger != null, "logger != null");
-            logger.Info("Starting server initialization #1");
-            using (var server = new Server())
-            {
-                Task.Run(async () => { await server.StartAsync(); });
-                logger.Info("Server process initialization #1 has completed");
 
-                logger.Info("Starting server initialization #2");
-                using (var server2 = new Server(false, listenerPort: 5108))
-                {
-                    Task.Run(async () => { await server2.StartAsync(); });
-                    logger.Info("Server process initialization #2 has completed");
-                    Console.ReadLine();
-                }
+            using (var node1 = new Node { Tag = "#1" })
+            using (var node2 = new Node(listenerPort: 5108) { Tag = "#2" })
+            {
+                Task.Run(async () => { await node1.StartAsync(); });
+                Task.Run(async () => { await node2.StartAsync(); });
+
+                Console.WriteLine("Press ENTER to terminate all nodes");
+                Console.ReadLine();
             }
         }
     }

@@ -50,6 +50,9 @@ namespace Mystiko.Net
         [NotNull]
         private readonly CancellationTokenSource _acceptCancellationTokenSource = new CancellationTokenSource();
 
+        /// <summary>
+        /// A value indicating whether or not this object is disposed
+        /// </summary>
         private bool _disposed;
 
         /// <summary>
@@ -209,7 +212,9 @@ namespace Mystiko.Net
             Logger.Debug("Determining whether this node is behind a firewall...");
             var publicIp = await NetUtility.FindPublicIPAddressAsync(cancellationToken);
             if (publicIp == null)
+            {
                 return null;
+            }
 
             Random random;
             using (var rng = RandomNumberGenerator.Create())

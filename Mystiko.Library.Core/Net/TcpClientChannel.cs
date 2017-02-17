@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+﻿// ---------'-----------------------------------------------------------------------------------------------------------
 // <copyright file="TcpClientChannel.cs" company="Sean McElroy">
 //   Copyright Sean McElroy; released as open-source software under the licensing terms of the MIT License.
 // </copyright>
@@ -12,12 +12,16 @@ namespace Mystiko.Net
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Net;
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
+
+    using log4net;
+    using log4net.Repository.Hierarchy;
 
     using Messages;
 
@@ -26,6 +30,11 @@ namespace Mystiko.Net
     /// </summary>
     public class TcpClientChannel : IClientChannel
     {
+        /// <summary>
+        /// The logging implementation for recording the activities that occur in the methods of this class
+        /// </summary>
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpClientChannel));
+
         /// <summary>
         /// The size of the stream receive buffer
         /// </summary>
@@ -46,7 +55,7 @@ namespace Mystiko.Net
         /// The message handlers for this channel
         /// </summary>
         [NotNull]
-        private List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
+        private readonly List<Action<IMessage>> messageHandlers = new List<Action<IMessage>>();
 
         public TcpClientChannel([NotNull] ServerNodeIdentity serverIdentity, [NotNull] TcpClient client, CancellationToken serverCancellationToken = default(CancellationToken))
         {
@@ -65,6 +74,7 @@ namespace Mystiko.Net
             // Setup receiver task
             this._receiveTask = new Task(async () =>
             {
+                Logger.Verbose($"Starting receiver loop for {((IPEndPoint)this._client.Client.LocalEndPoint).Address}:{((IPEndPoint)this._client.Client.LocalEndPoint).Port}");
                 var stream = this._client.GetStream();
                 while (!serverCancellationToken.IsCancellationRequested)
                 {
@@ -106,7 +116,7 @@ namespace Mystiko.Net
                 throw new ArgumentNullException(nameof(messageHandler));
             }
 
-            this._messageHandlers.Add(messageHandler);
+            this.messageHandlers.Add(messageHandler);
         }
 
         /// <inheritdoc />
