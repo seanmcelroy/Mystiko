@@ -130,6 +130,12 @@ namespace Mystiko.Net
         public IPAddress PublicIPAddress { get; private set; }
 
         /// <summary>
+        /// Gets the public TCP port number for this node as it would appear to remote nodes in other networks
+        /// </summary>
+        [CanBeNull]
+        public ushort? PublicPort { get; private set; }
+
+        /// <summary>
         /// Gets a dictionary of peers discovered through this <see cref="TcpPeerDiscoveryChannel"/>, keyed by the composite hash of the
         /// node identity's components
         /// </summary>
@@ -145,11 +151,14 @@ namespace Mystiko.Net
         /// <summary>
         /// Starts the peer discovery process
         /// </summary>
+        /// <param name="localPort">The TCP port number of this local instance, so if we are broadcasting (that is, if <paramref name="passive"/> is set to false), we can share that with the broadcast receivers</param>
         /// <param name="passive">A value indicating whether this peer should broadcast its presence, rather than simply listening for the presence of other nodes</param>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        public async Task StartAsync(bool passive = false, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task StartAsync(ushort localPort, bool passive = false, CancellationToken cancellationToken = default(CancellationToken))
         {
+            this.PublicPort = localPort;
+
             // First, we need to find out our public IP address
             if (!await this.FindPublicIPAddress(cancellationToken))
             {
@@ -217,18 +226,21 @@ namespace Mystiko.Net
                                     switch ((MessageType)nextMessageBytes[0])
                                     {
                                         case MessageType.PeerAnnounce:
-                                            var peerAnnounce = new PeerAnnounce();
+                                            if (nextMessageBytes.Length == 0)
+                                            {
+                                                Logger.Error($"Unable to parse peer announcement from {udpReceiveResult.RemoteEndPoint.Address}");
+                                                continue;
+                                            }
+
                                             try
                                             {
-                                                peerAnnounce.FromPayload(nextMessageBytes);
+                                                var peerAnnounce = new PeerAnnounce(nextMessageBytes);
+                                                this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
                                             }
                                             catch (Exception ex)
                                             {
                                                 Logger.Error($"Unable to parse peer announcement from {udpReceiveResult.RemoteEndPoint.Address}", ex);
-                                                continue;
                                             }
-
-                                            this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
 
                                             break;
                                         default:
@@ -258,16 +270,19 @@ namespace Mystiko.Net
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
+                    Debug.Assert(this.PublicIPAddress != null, "this.PublicIPAddress != null");
+                    Debug.Assert(this.PublicPort != null, "this.PublicPort != null");
+                    Debug.Assert(this.PublicPort > 0, "this.PublicPort > 0");
                     Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
-                    await this.SendAsync(new PeerAnnounce
-                                             {
-                                                 PeerNetworkingProtocolVersion = 1,
-                                                 PublicIPAddress = this.PublicIPAddress,
-                                                 DateEpoch = this._serverIdentity.DateEpoch,
-                                                 PublicKeyX = this._serverIdentity.PublicKeyX,
-                                                 PublicKeyY = this._serverIdentity.PublicKeyY,
-                                                 Nonce = this._serverIdentity.Nonce
-                                             });
+                    await this.SendAsync(
+                        new PeerAnnounce(
+                            1,
+                            this.PublicIPAddress,
+                            this.PublicPort.Value,
+                            this._serverIdentity.DateEpoch,
+                            this._serverIdentity.PublicKeyX,
+                            this._serverIdentity.PublicKeyY,
+                            this._serverIdentity.Nonce));
 
                     Thread.Sleep(3 * 1000);
                 }
@@ -360,6 +375,11 @@ namespace Mystiko.Net
                 throw new ArgumentException("Nonce value not supplied", nameof(announcement));
             }
 
+            if (announcement.PublicPort == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(announcement), "TCP port number must be greater than 0");
+            }
+
             // Is this my own multicast message?
             if (this._serverIdentity.DateEpoch == announcement.DateEpoch && this._serverIdentity.PublicKeyX.SequenceEqual(announcement.PublicKeyX) && this._serverIdentity.PublicKeyY.SequenceEqual(announcement.PublicKeyY) && this._serverIdentity.Nonce == announcement.Nonce)
             {
@@ -381,6 +401,13 @@ namespace Mystiko.Net
             {
                 Logger.Debug($"Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
 
+                // FOR LOCAL TESTING ONLY
+                var remoteAddress = announcement.PublicIPAddress;
+                if (announcement.PublicIPAddress.Equals(this.PublicIPAddress))
+                {
+                    remoteAddress = IPAddress.Loopback;
+                }
+
                 var discoveredPeer = new DiscoveredPeer(
                     new ServerNodeIdentity
                     {
@@ -389,7 +416,7 @@ namespace Mystiko.Net
                         PublicKeyY = announcement.PublicKeyY,
                         Nonce = announcement.Nonce.Value
                     }, 
-                    remoteEndpoint);
+                    new IPEndPoint(remoteAddress, announcement.PublicPort));
 
                 this.DiscoveredPeers.Add(result.CompositeHash, discoveredPeer);
 

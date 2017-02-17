@@ -27,15 +27,14 @@ namespace Mystiko.Library.Tests.Net.Messages
         [Fact]
         public void ToWire()
         {
-            var na = new PeerAnnounce
-            {
-                PeerNetworkingProtocolVersion = 1,
-                PublicIPAddress = IPAddress.Parse("127.0.0.1"),
-                DateEpoch = Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds),
-                PublicKeyX = new byte[32],
-                PublicKeyY = new byte[32],
-                Nonce = 0
-            };
+            var na = new PeerAnnounce(
+                1,
+                IPAddress.Parse("127.0.0.1"),
+                5110,
+                Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds),
+                new byte[32],
+                new byte[32],
+                0);
 
             var ret = na.ToPayload();
             Assert.NotNull(ret);
@@ -47,21 +46,19 @@ namespace Mystiko.Library.Tests.Net.Messages
         [Fact]
         public void FromWire()
         {
-            var pa = new PeerAnnounce
-            {
-                PeerNetworkingProtocolVersion = 1,
-                PublicIPAddress = IPAddress.Parse("127.0.0.1"),
-                DateEpoch = Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds),
-                PublicKeyX = new byte[32],
-                PublicKeyY = new byte[32],
-                Nonce = 0
-            };
+            var pa = new PeerAnnounce(
+                1,
+                IPAddress.Parse("127.0.0.1"),
+                5110,
+                Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds),
+                new byte[32],
+                new byte[32],
+                0);
 
             var ret = pa.ToPayload();
             Assert.NotNull(ret);
 
-            var rebuilt = new PeerAnnounce();
-            rebuilt.FromPayload(ret);
+            var rebuilt = new PeerAnnounce(ret);
 
             Assert.Equal(pa.PeerNetworkingProtocolVersion, rebuilt.PeerNetworkingProtocolVersion);
             Assert.NotNull(pa.PublicIPAddress);

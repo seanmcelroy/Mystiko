@@ -155,7 +155,7 @@ namespace Mystiko.Net
             this._acceptTask.Start();
 
             // Setup and start multicast receiver
-            await this._peerDiscovery.StartAsync(this.Passive, cancellationToken);
+            await this._peerDiscovery.StartAsync((ushort)((IPEndPoint)this._listener.LocalEndpoint).Port, this.Passive, cancellationToken);
         }
 
         /// <inheritdoc />
