@@ -136,7 +136,7 @@ namespace Mystiko.Net
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
         [NotNull]
-        public async Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
+        public async Task StartAsync(bool disableLogging = false, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (this._disposed)
             {
@@ -147,9 +147,10 @@ namespace Mystiko.Net
             var sc = this._serverChannel as TcpServerChannel;
             if (sc != null)
             {
-                #if !DEBUG
+#if !DEBUG
                 this.Firewalled = await DetermineFirewallStatus(cancellationToken);
-                #endif
+#endif
+                sc.DisableLogging = disableLogging;
             }
 
             this._serverChannel.Passive = this.Passive;
@@ -220,6 +221,7 @@ namespace Mystiko.Net
             using (var rng = RandomNumberGenerator.Create())
             {
                 var randomBytes = new byte[4];
+                Debug.Assert(rng != null, "rng != null");
                 rng.GetBytes(randomBytes);
                 var seed = BitConverter.ToInt32(randomBytes, 0);
                 random = new Random(seed);

@@ -21,7 +21,6 @@ namespace Mystiko.Net
     using JetBrains.Annotations;
 
     using log4net;
-    using log4net.Repository.Hierarchy;
 
     using Messages;
 
@@ -55,7 +54,7 @@ namespace Mystiko.Net
         /// The message handlers for this channel
         /// </summary>
         [NotNull]
-        private readonly List<Action<IMessage>> messageHandlers = new List<Action<IMessage>>();
+        private readonly List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
 
         public TcpClientChannel([NotNull] ServerNodeIdentity serverIdentity, [NotNull] TcpClient client, CancellationToken serverCancellationToken = default(CancellationToken))
         {
@@ -116,7 +115,7 @@ namespace Mystiko.Net
                 throw new ArgumentNullException(nameof(messageHandler));
             }
 
-            this.messageHandlers.Add(messageHandler);
+            this._messageHandlers.Add(messageHandler);
         }
 
         /// <inheritdoc />

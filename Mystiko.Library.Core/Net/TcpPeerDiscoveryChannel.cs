@@ -34,7 +34,13 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpPeerDiscoveryChannel));
+
+        /// <summary>
+        /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
+        /// </summary>
+        public bool DisableLogging { get; set; }
 
         /// <summary>
         /// The identity of the server node
@@ -155,7 +161,10 @@ namespace Mystiko.Net
         /// <param name="passive">A value indicating whether this peer should broadcast its presence, rather than simply listening for the presence of other nodes</param>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        public async Task StartAsync(ushort localPort, bool passive = false, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task StartAsync(
+            ushort localPort, 
+            bool passive = false, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             this.PublicPort = localPort;
 
@@ -168,7 +177,11 @@ namespace Mystiko.Net
             // Setup and start multicast receiver
             this._multicastReceiveTask = new Task(async () =>
             {
-                Logger.Info($"Joining multicast group for peer discovery on {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
+                if (!this.DisableLogging)
+                {
+                    Logger.Info($"Joining multicast group for peer discovery on {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
+                }
+
                 this._multicastUdpClient.JoinMulticastGroup(this._multicastGroupAddress);
                 try
                 {
@@ -260,7 +273,11 @@ namespace Mystiko.Net
                 }
                 finally
                 {
-                    Logger.Info($"Dropping multicast group for peer discovery from {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
+                    if (!this.DisableLogging)
+                    {
+                        Logger.Info($"Dropping multicast group for peer discovery from {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
+                    }
+
                     this._multicastUdpClient.DropMulticastGroup(this._multicastGroupAddress);
                 }
             });
@@ -273,7 +290,12 @@ namespace Mystiko.Net
                     Debug.Assert(this.PublicIPAddress != null, "this.PublicIPAddress != null");
                     Debug.Assert(this.PublicPort != null, "this.PublicPort != null");
                     Debug.Assert(this.PublicPort > 0, "this.PublicPort > 0");
-                    Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
+
+                    if (!this.DisableLogging)
+                    {
+                        Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
+                    }
+
                     await this.SendAsync(
                         new PeerAnnounce(
                             1,
@@ -331,7 +353,7 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A value indicating whether an address was located and set in the <see cref="PublicIPAddress"/> property</returns>
-        internal async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
+        private async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
         {
             var publicIp = await NetUtility.FindPublicIPAddressAsync(cancellationToken);
             this.PublicIPAddress = publicIp;
@@ -399,7 +421,10 @@ namespace Mystiko.Net
             Debug.Assert(result.CompositeHash != null, "result.CompositeHash != null");
             if (!this.DiscoveredPeers.ContainsKey(result.CompositeHash))
             {
-                Logger.Debug($"Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
+                if (!this.DisableLogging)
+                {
+                    Logger.Debug($"Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
+                }
 
                 // FOR LOCAL TESTING ONLY
                 var remoteAddress = announcement.PublicIPAddress;

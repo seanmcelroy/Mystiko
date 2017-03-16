@@ -60,13 +60,13 @@ namespace Mystiko.IO
                         file,
                         Block.NoSavedChunk,
                         verbose: verbose,
-                        chunkFileAction: chunkIndex =>
+                        progress: new Progress<ChunkFileProgress>(p =>
                             {
                                 if (verbose)
                                 {
                                     Console.Write(".");
                                 }
-                            },
+                            }),
                         cancellationToken: cancellationToken);
                     return result;
                 }
@@ -124,17 +124,18 @@ namespace Mystiko.IO
                     {
                         Debug.Assert(hasher != null, "hasher != null");
                         Debug.Assert(encryptedChunk != null, "encryptedChunk != null");
+                        Debug.Assert(chunkFileName != null, "chunkFileName != null");
                         return await Block.CreateViaOutputDirectory(hasher, encryptedChunk, outputDirectory, chunkFileName, overwrite, verbose, verify);
                     },
                     verbose: verbose,
                     chunkSize: chunkSize,
-                    chunkFileAction: chunkIndex =>
+                    progress: new Progress<ChunkFileProgress>(p =>
                     {
                         if (verbose)
                         {
                             Console.Write(".");
                         }
-                    },
+                    }),
                     cancellationToken: cancellationToken);
             }
         }
@@ -170,6 +171,7 @@ namespace Mystiko.IO
                     {
                         Debug.Assert(ha != null, "ha != null");
                         Debug.Assert(ba != null, "ba != null");
+                        Debug.Assert(sourceFile.Name != null, "sourceFile.Name != null");
                         return await Block.CreateViaOutputDirectory(ha, ba, outputDirectory, sourceFile.Name, overwrite, verbose, verify);
                     },
                     verbose,
@@ -234,7 +236,7 @@ namespace Mystiko.IO
 
             Debug.Assert(manifest != null, "manifest != null");
             Debug.Assert(manifest.BlockHashes != null, "manifest.BlockHashes != null");
-            Debug.Assert(manifestFile.Directory != null, "manifestFile.Directory != null");
+            Debug.Assert(manifestFile.DirectoryName != null, "manifestFile.DirectoryName != null");
 
             return await UnchunkFileViaOutputDirectory(manifest, manifestFile.DirectoryName, saveFile, overwrite, verbose);
         }
@@ -561,7 +563,7 @@ namespace Mystiko.IO
     [NotNull] Func<HashAlgorithm, byte[], string, uint, Task<Block>> blockCreatorTask,
     int? chunkSize = null,
     bool verbose = false,
-    Action<int> chunkFileAction = null,
+    Progress<ChunkFileProgress> progress = null,
     CancellationToken cancellationToken = default(CancellationToken))
         {
             if (fileStream == null)
@@ -662,7 +664,7 @@ namespace Mystiko.IO
                                 }
                             }
 
-                            chunkFileAction?.Invoke(i);
+                            (progress as IProgress<ChunkFileProgress>)?.Report(new ChunkFileProgress { ChunkIndex = i });
                         }
                     }
                 });
@@ -692,8 +694,6 @@ namespace Mystiko.IO
                 using (var sha = SHA512.Create())
                 {
                     var iv = sha.ComputeHash(encKey).Take(16).ToArray();
-
-                    // TODO: Is this an okay way to generate an IV?
                     using (var encryptor = aes.CreateEncryptor(encKey, iv))
                     {
                         if (verbose)

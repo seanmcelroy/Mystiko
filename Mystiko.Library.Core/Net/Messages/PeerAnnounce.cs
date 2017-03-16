@@ -127,7 +127,6 @@ namespace Mystiko.Net.Messages
         /// <summary>
         /// Gets the public TCP port number of this peer node
         /// </summary>
-        [NotNull]
         public ushort PublicPort { get; private set; }
 
         /// <summary>

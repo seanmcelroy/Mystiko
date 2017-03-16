@@ -12,6 +12,8 @@ namespace Mystiko.Node.Core
 {
     using System;
     using System.IO;
+    using System.Linq;
+    using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -19,6 +21,7 @@ namespace Mystiko.Node.Core
 
     using log4net;
 
+    using Mystiko.Cryptography;
     using Mystiko.IO;
 
     using Net;
@@ -38,7 +41,13 @@ namespace Mystiko.Node.Core
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Node));
+
+        /// <summary>
+        /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
+        /// </summary>
+        public bool DisableLogging { get; set; }
 
         /// <summary>
         /// The network server object
@@ -86,13 +95,20 @@ namespace Mystiko.Node.Core
             // Setup data directory
 
             // Lock file
-            var dataDirectory = Path.Combine(AppContext.BaseDirectory, "Data" + this.Tag);
-            if (!Directory.Exists(dataDirectory))
+            var libraryDirectory = Path.Combine(AppContext.BaseDirectory, "Library" + this.Tag);
+            if (!Directory.Exists(libraryDirectory))
             {
-                Directory.CreateDirectory(dataDirectory);
+                Directory.CreateDirectory(libraryDirectory);
             }
 
-            var lockFile = Path.Combine(dataDirectory, "lock");
+            var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + this.Tag);
+            if (!Directory.Exists(repoDirectory))
+            {
+                Directory.CreateDirectory(repoDirectory);
+            }
+
+
+            var lockFile = Path.Combine(libraryDirectory, "lock");
             if (!File.Exists(lockFile))
             {
                 this.lockFileStream = File.Open(lockFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
@@ -106,7 +122,7 @@ namespace Mystiko.Node.Core
                 }
                 catch (Exception ex)
                 {
-                    throw new InvalidOperationException($"Data directory {dataDirectory} already in use by another process.", ex);
+                    throw new InvalidOperationException($"Library directory {libraryDirectory} already in use by another process.", ex);
                 }
 
                 this.lockFileStream = fileStreamAttempt;
@@ -114,28 +130,46 @@ namespace Mystiko.Node.Core
             
             // Start network subsystem
             Logger.Info($"Starting server initialization{(" " + this.Tag).TrimEnd()}");
-            await this.server.StartAsync(cancellationToken);
+            await this.server.StartAsync(this.DisableLogging, cancellationToken);
             Logger.Info($"Server process initialization{(" " + this.Tag).TrimEnd()} has completed");
         }
 
-        public async Task InsertFileAsync([NotNull] FileInfo file)
+        /// <summary>
+        /// Inserts content into the local store and makes it available to the wider network
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public async Task<bool> InsertFileAsync([NotNull] FileInfo file)
         {
             if (file == null)
-            {
                 throw new ArgumentNullException(nameof(file));
-            }
+            if (!file.Exists)
+                throw new FileNotFoundException("File does not exist", file.FullName);
 
-            Logger.Info($"Inserting file {file.FullName}...");
+            if (!this.DisableLogging)
+                Logger.Info($"Inserting file {file.FullName}...");
 
-            var dataDirectory = Path.Combine(AppContext.BaseDirectory, "Data" + this.Tag);
+            /*
+             * Store chunks and manifest locally in the LIBRARY directory
+             */
+            var dataDirectory = Path.Combine(AppContext.BaseDirectory, "Library" + this.Tag);
             var manifestFile = new FileInfo(Path.Combine(dataDirectory, file.Name + ".manifest"));
             if (manifestFile.Exists)
             {
                 Logger.Warn($"Manifest {manifestFile.FullName} already exists.  Skipping insert.");
-                return;
+                return false;
             }
 
-            var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(file, new DirectoryInfo(dataDirectory));
+            FileManifest chunkResult;
+            try
+            {
+                chunkResult = await FileUtility.ChunkFileViaOutputDirectory(file, new DirectoryInfo(dataDirectory));
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"Problem chunking file {file.FullName}.  Skipping insert.", ex);
+                return false;
+            }
 
             using (var fs = new FileStream(manifestFile.FullName, FileMode.CreateNew))
             using (var sw = new StreamWriter(fs))
@@ -146,6 +180,32 @@ namespace Mystiko.Node.Core
                     await sw.WriteAsync(json);
                 }
             }
+
+            /*
+             * Encrypt manifest with Manifest Decrypt Key (MDK)
+             */
+            var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + this.Tag);
+            byte[] encKey;
+            using (var fs = new FileStream(manifestFile.FullName, FileMode.Open, FileAccess.Read))
+            using (var bfs = new BufferedStream(fs))
+            {
+                var tempFile = manifestFile.FullName + ".encrypted";
+                encKey = await EncryptUtility.GenerateKeyAndEncryptFileAsync(bfs, new FileInfo(tempFile));
+                File.Move(tempFile, Path.Combine(repoDirectory, FileUtility.ByteArrayToString(encKey) + ".0"));
+            }
+
+            /*
+             * Copy LIBRARY parts, except the manifest into the REPO folder
+             */
+            foreach (var fileName in Directory.GetFiles(dataDirectory, chunkResult.Name + ".*"))
+            {
+                if (fileName.EndsWith(".manifest"))
+                    continue;
+
+                File.Copy(fileName, Path.Combine(repoDirectory, FileUtility.ByteArrayToString(encKey) + Path.GetExtension(fileName)));
+            }
+
+            return true;
         }
 
         /// <summary>

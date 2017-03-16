@@ -13,6 +13,7 @@ namespace Mystiko.Node
     using System.Diagnostics;
     using System.IO;
     using System.Reflection;
+    using System.Threading;
     using System.Threading.Tasks;
     using System.Xml;
 
@@ -21,8 +22,6 @@ namespace Mystiko.Node
     using log4net.Repository.Hierarchy;
 
     using Mystiko.Node.Core;
-
-    using Net;
 
     /// <summary>
     /// Main entry point for network node server process
@@ -49,21 +48,25 @@ namespace Mystiko.Node
             Debug.Assert(logger != null, "logger != null");
 
             logger.Info("Creating node(s)...");
+            var cts = new CancellationTokenSource();
             using (var node1 = new Node { Tag = "#1" })
-            using (var node2 = new Node(listenerPort: 5108) { Tag = "#2" })
+            using (var node2 = new Node(listenerPort: 5108) { Tag = "#2", DisableLogging = true })
             {
-                Task.Run(async () => { await node1.StartAsync(); });
-                Task.Run(async () => { await node2.StartAsync(); });
+                Task.Run(async () => { await node1.StartAsync(cts.Token); }, cts.Token);
+                Task.Run(async () => { await node2.StartAsync(cts.Token); }, cts.Token);
 
                 Task.Run(
                     async () =>
-                        {
-                            await node1.InsertFileAsync(
-                                new FileInfo(@"C:\Users\smcelroy\Downloads\Git-2.11.0-64-bit.exe"));
+                    {
+                        var fi = new FileInfo(@"C:\Users\smcelroy\Downloads\Git-2.11.0-64-bit.exe");
+                        if (fi.Exists)
+                            await node1.InsertFileAsync(fi);
                         });
 
                 Console.WriteLine("Press ENTER to terminate all nodes");
                 Console.ReadLine();
+                cts.Cancel();
+                Thread.Sleep(3000);
             }
         }
     }

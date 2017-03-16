@@ -58,7 +58,8 @@ namespace Mystiko
                         ExceptionString = exception?.ToString(),
                         Level = Level.Trace,
                         Message = message,
-                        ThreadName = Thread.CurrentThread.Name
+                        ThreadName = Thread.CurrentThread?.Name,
+                        TimeStampUtc = DateTime.UtcNow
                     }));
         }
 
@@ -92,7 +93,8 @@ namespace Mystiko
                             ExceptionString = exception?.ToString(),
                             Level = Level.Verbose,
                             Message = message,
-                            ThreadName = Thread.CurrentThread.Name
+                            ThreadName = Thread.CurrentThread?.Name,
+                            TimeStampUtc = DateTime.UtcNow
                         }));
         }
     }

@@ -55,7 +55,7 @@
         {
             get
             {
-                return FileUtility.ByteArrayToString(this.UnlockBytes);
+                return this.UnlockBytes == null ? null : FileUtility.ByteArrayToString(this.UnlockBytes);
             }
 
             set

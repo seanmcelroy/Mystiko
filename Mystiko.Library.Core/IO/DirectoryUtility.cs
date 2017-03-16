@@ -95,6 +95,7 @@
             {
                 Debug.Assert(sha != null, "sha != null");
                 var hash = sha.ComputeHash(bs);
+                Debug.Assert(hash != null, "hash != null");
                 hashString = FileUtility.ByteArrayToString(hash);
             }
 

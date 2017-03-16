@@ -31,7 +31,13 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpServerChannel));
+
+        /// <summary>
+        /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
+        /// </summary>
+        public bool DisableLogging { get; set; }
 
         /// <summary>
         /// The identity of the server node
@@ -104,7 +110,10 @@ namespace Mystiko.Net
                 {
                     // We found a peer!
                     Debug.Assert(dp != null, "dp != null");
-                    Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Peer discovered {dp.NodeIdentity.GetCompositeHash().Substring(3, 8)} at {dp.DiscoveryEndpoint.Address}:{dp.DiscoveryEndpoint.Port}");
+                    if (!this.DisableLogging)
+                    {
+                        Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Peer discovered {dp.NodeIdentity.GetCompositeHash().Substring(3, 8)} at {dp.DiscoveryEndpoint.Address}:{dp.DiscoveryEndpoint.Port}");
+                    }
 
                     // Sleep between 1 and 10 seconds for variability if two nodes start at the same time
                     Thread.Sleep(new Random(Environment.TickCount).Next(1000, 10000));
@@ -122,7 +131,11 @@ namespace Mystiko.Net
         /// <inheritdoc />
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            Logger.Info($"Listening for peers on {((IPEndPoint)this._listener.LocalEndpoint).Address}:{((IPEndPoint)this._listener.LocalEndpoint).Port}");
+            if (!this.DisableLogging)
+            {
+                Logger.Info($"Listening for peers on {((IPEndPoint)this._listener.LocalEndpoint).Address}:{((IPEndPoint)this._listener.LocalEndpoint).Port}");
+            }
+
             try
             {
                 this._listener.Start();
@@ -142,7 +155,10 @@ namespace Mystiko.Net
                     {
                         var tcpClient = await this._listener.AcceptTcpClientAsync();
                         Debug.Assert(tcpClient != null, "tcpClient != null");
-                        Logger.Verbose($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
+                        if (!this.DisableLogging)
+                        {
+                            Logger.Verbose($"Connection from {((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)tcpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)tcpClient.Client.LocalEndPoint).Port}");
+                        }
 
                         this._clients.Add(new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken));
                     }
@@ -155,6 +171,7 @@ namespace Mystiko.Net
             this._acceptTask.Start();
 
             // Setup and start multicast receiver
+            this._peerDiscovery.DisableLogging = this.DisableLogging;
             await this._peerDiscovery.StartAsync((ushort)((IPEndPoint)this._listener.LocalEndpoint).Port, this.Passive, cancellationToken);
         }
 
@@ -167,16 +184,26 @@ namespace Mystiko.Net
             }
 
             var tcpClient = new TcpClient();
-            Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connecting to peer {endpoint.Address}:{endpoint.Port}...");
+            if (!this.DisableLogging)
+            {
+                Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connecting to peer {endpoint.Address}:{endpoint.Port}...");
+            }
+
             try
             {
                 await tcpClient.ConnectAsync(endpoint.Address, endpoint.Port);
-                Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connected to peer {endpoint.Address}:{endpoint.Port}");
+                if (!this.DisableLogging)
+                {
+                    Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connected to peer {endpoint.Address}:{endpoint.Port}");
+                }
                 return new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken);
             }
             catch (SocketException sex)
             {
-                Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Unable to connect to {endpoint.Address}:{endpoint.Port}: {sex.Message} ({sex.SocketErrorCode})");
+                if (!this.DisableLogging)
+                {
+                    Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Unable to connect to {endpoint.Address}:{endpoint.Port}: {sex.Message} ({sex.SocketErrorCode})");
+                }
                 return null;
             }
         }

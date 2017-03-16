@@ -29,7 +29,7 @@ namespace Mystiko.Library.Tests.Net.Messages
         {
             var na = new PeerAnnounce(
                 1,
-                IPAddress.Parse("127.0.0.1"),
+                IPAddress.Loopback,
                 5110,
                 Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds),
                 new byte[32],

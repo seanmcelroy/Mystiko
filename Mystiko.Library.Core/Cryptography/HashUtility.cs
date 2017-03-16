@@ -24,6 +24,7 @@ namespace Mystiko.Cryptography
         /// <summary>
         /// An instance of a hashing algorithm
         /// </summary>
+        [NotNull]
         private static readonly SHA512 Hasher = SHA512.Create();
 
         /// <summary>

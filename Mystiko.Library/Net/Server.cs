@@ -85,6 +85,7 @@ namespace Mystiko.Net
                     var newIdentityAndKey = (serverNodeIdentityFactory ?? (() => ServerNodeIdentity.Generate(3))).Invoke();
 
                     Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
+                    Debug.Assert(newIdentityAndKey.Item2 != null, "newIdentityAndKey.Item2 != null");
                     this._serverNodeIdentityAndKey = new ServerNodeIdentityAndKey
                                                        {
                                                            DateEpoch = newIdentityAndKey.Item1.DateEpoch,
