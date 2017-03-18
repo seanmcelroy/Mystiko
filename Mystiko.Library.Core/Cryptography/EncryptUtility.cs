@@ -45,7 +45,7 @@
         /// <param name="fileStream">The stream to encrypt</param>
         /// <param name="destination">The destination for the output encrypted file</param>
         /// <returns>The encryption key used to encrypt the file</returns>
-        [NotNull]
+        [NotNull, ItemNotNull]
         public static async Task<byte[]> GenerateKeyAndEncryptFileAsync([NotNull] BufferedStream fileStream, [NotNull] FileInfo destination)
         {
             var encKey = new byte[32];

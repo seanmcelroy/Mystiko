@@ -185,24 +185,69 @@ namespace Mystiko.Node.Core
              * Encrypt manifest with Manifest Decrypt Key (MDK)
              */
             var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + this.Tag);
-            byte[] encKey;
+            string tfid;
             using (var fs = new FileStream(manifestFile.FullName, FileMode.Open, FileAccess.Read))
             using (var bfs = new BufferedStream(fs))
             {
                 var tempFile = manifestFile.FullName + ".encrypted";
-                encKey = await EncryptUtility.GenerateKeyAndEncryptFileAsync(bfs, new FileInfo(tempFile));
-                File.Move(tempFile, Path.Combine(repoDirectory, FileUtility.ByteArrayToString(encKey) + ".0"));
+                var keyManifest = await EncryptUtility.GenerateKeyAndEncryptFileAsync(bfs, new FileInfo(tempFile));
+
+                /*
+                 * Generate temporal file identifier (TFID)
+                 */
+                var blockXors = new byte[32];
+                foreach (var fileName in Directory.GetFiles(repoDirectory, chunkResult.Name + ".*"))
+                {
+                    // Get first 32 bytes to prepare XOR
+                    using (var br = new BinaryReader(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, 32)))
+                    {
+                        var fileFirst32 = br.ReadBytes(32);
+                        blockXors = FileUtility.ExclusiveOr(blockXors, fileFirst32);
+                    }
+                }
+
+                // TODO: XOR progressive network entropy
+                tfid = FileUtility.ByteArrayToString(FileUtility.ExclusiveOr(blockXors, keyManifest));
+
+                File.Move(tempFile, Path.Combine(dataDirectory, tfid + ".0"));
             }
+            manifestFile.Delete();
 
             /*
              * Copy LIBRARY parts, except the manifest into the REPO folder
              */
             foreach (var fileName in Directory.GetFiles(dataDirectory, chunkResult.Name + ".*"))
             {
-                if (fileName.EndsWith(".manifest"))
-                    continue;
+                File.Move(fileName, Path.Combine(dataDirectory, tfid + Path.GetExtension(fileName)));
+            }
 
-                File.Copy(fileName, Path.Combine(repoDirectory, FileUtility.ByteArrayToString(encKey) + Path.GetExtension(fileName)));
+            foreach (var fileName in Directory.GetFiles(dataDirectory, tfid + ".*"))
+            {
+                File.Copy(fileName, Path.Combine(repoDirectory, tfid + Path.GetExtension(fileName)));
+            }
+
+            /*
+             * Create Resource Record
+             */
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                var rr = new ResourceRecord
+                         {
+                             TemporalFileID = tfid,
+                             EntropyTimestamp = 0,
+                             BlockHashes = chunkResult.BlockHashes.OrderBy(h =>
+                             {
+                                 var iBytes = new byte[16];
+                                 rng.GetBytes(iBytes);
+                                 return BitConverter.ToInt32(iBytes, 0);
+                             }).ToArray()
+                         };
+
+                using (var fs = new FileStream(Path.Combine(dataDirectory, tfid + ".rr"), FileMode.CreateNew))
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.Write(JsonConvert.SerializeObject(rr));
+                }
             }
 
             return true;
