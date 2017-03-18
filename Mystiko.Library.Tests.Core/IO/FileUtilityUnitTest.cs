@@ -91,6 +91,8 @@ namespace Mystiko.Library.Tests.IO
             
             var encryptFile = new FileInfo(encryptFilePath);
             Assert.True(encryptFile.Exists);
+            Assert.NotNull(encryptFile.Directory);
+            Assert.NotNull(encryptFile.DirectoryName);
 
             var chunkResult = await FileUtility.ChunkFileViaOutputDirectory(encryptFile, encryptFile.Directory, true, true, true);
             Assert.NotNull(chunkResult);
@@ -108,8 +110,10 @@ namespace Mystiko.Library.Tests.IO
             {
                 Debug.Assert(sha != null, "sha != null");
                 var firstHash = sha.ComputeHash(originalStream);
+                Assert.NotNull(firstHash);
                 var secondHash = sha.ComputeHash(rebuiltStream);
-                
+                Assert.NotNull(secondHash);
+
                 for (var i = 0; i < firstHash.Length; i++)
                 {
                     if (firstHash[i] != secondHash[i])

@@ -13,6 +13,7 @@ namespace Mystiko.Cryptography
     using System.Diagnostics;
     using System.IO;
     using System.Security.Cryptography;
+    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
@@ -26,6 +27,45 @@ namespace Mystiko.Cryptography
         /// </summary>
         [NotNull]
         private static readonly SHA512 Hasher = SHA512.Create();
+
+        /// <summary>
+        /// Provides the SHA512 hash of the <paramref name="source"/> file, and also provides the first and last 64 bytes of that file.
+        /// </summary>
+        /// <param name="source">The file to hash</param>
+        [NotNull, ItemNotNull, Pure]
+        public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async([NotNull] FileInfo source)
+        {
+            using (var fs = new FileStream(source.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                return await HashFileSHA512Async(fs);
+            }
+        }
+
+        /// <summary>
+        /// Provides the SHA512 hash of the <paramref name="source"/> file, and also provides the first and last 64 bytes of that file.
+        /// </summary>
+        /// <param name="source">The file to hash</param>
+        [NotNull, ItemNotNull, Pure]
+        public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async([NotNull] Stream source)
+        {
+            using (var sha = SHA512.Create())
+            using (var bsSource = new BufferedStream(source, 1024 * 1024 * 16))
+            {
+                bsSource.Seek(0, SeekOrigin.Begin);
+                var first64Bytes = new byte[64];
+                await bsSource.ReadAsync(first64Bytes, 0, 64);
+
+                bsSource.Seek(0, SeekOrigin.Begin);
+                Debug.Assert(sha != null, "sha != null");
+                var hash = sha.ComputeHash(bsSource);
+
+                bsSource.Seek(-64, SeekOrigin.End);
+                var last64Bytes = new byte[64];
+                await bsSource.ReadAsync(last64Bytes, 0, 64);
+
+                return new Tuple<byte[], byte[], byte[]>(hash, first64Bytes, last64Bytes);
+            }
+        }
 
         /// <summary>
         /// Computes a hash for this block for the given pre-calculated header and a given nonce value

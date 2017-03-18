@@ -5,11 +5,12 @@
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
-    using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
+
+    using Mystiko.Cryptography;
 
     public static class DirectoryUtility
     {
@@ -88,16 +89,9 @@
             var manifest = await FileUtility.ChunkFileMetadataOnly(inputFileInfo, verbose, cancellationToken);
 
             // Hash file to detect future changes to the content of it, using 16 MB buffer
-            string hashString;
-            using (var sha = SHA512.Create())
-            using (var fs = inputFileInfo.OpenRead())
-            using (var bs = new BufferedStream(fs, 1024 * 1024 * 16))
-            {
-                Debug.Assert(sha != null, "sha != null");
-                var hash = sha.ComputeHash(bs);
-                Debug.Assert(hash != null, "hash != null");
-                hashString = FileUtility.ByteArrayToString(hash);
-            }
+            var hash = (await HashUtility.HashFileSHA512Async(inputFileInfo)).Item1;
+            Debug.Assert(hash != null, "hash != null");
+            var hashString = FileUtility.ByteArrayToString(hash);
 
             return new LocalShareFileManifest
             {

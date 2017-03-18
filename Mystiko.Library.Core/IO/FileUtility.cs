@@ -21,6 +21,8 @@ namespace Mystiko.IO
 
     using JetBrains.Annotations;
 
+    using Mystiko.Cryptography;
+
     using Newtonsoft.Json;
 
     /// <summary>
@@ -349,26 +351,22 @@ namespace Mystiko.IO
 
             var source = new Block[fileBlocks.Count];
             var chunks = new Dictionary<FileInfo, Block>();
-            using (var sha = SHA512.Create())
+            foreach (var fileBlock in fileBlocks)
             {
-                foreach (var fileBlock in fileBlocks)
+                Debug.Assert(fileBlock != null, "fileBlock != null");
+                var hashResult = await HashUtility.HashFileSHA512Async(fileBlock);
+
+                var hash = hashResult.Item1;
+                Debug.Assert(hash != null, "hash != null");
+                var last64Bytes = hashResult.Item3;
+                Debug.Assert(last64Bytes != null, "last64Bytes != null");
+
+                if (verbose)
                 {
-                    Debug.Assert(fileBlock != null, "fileBlock != null");
-                    using (var fs = new FileStream(fileBlock.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        var hash = sha.ComputeHash(fs);
-                        if (verbose)
-                        {
-                            Console.WriteLine($"Hashed block for manifest matching: {fileBlock.Name} ({fileBlock.Length:N0} bytes) -> {ByteArrayToString(hash)}");
-                        }
-
-                        fs.Seek(-64, SeekOrigin.End);
-                        var last64Bytes = new byte[64];
-                        await fs.ReadAsync(last64Bytes, 0, 64);
-
-                        chunks.Add(fileBlock, new Block(fileBlock.FullName, hash, last64Bytes));
-                    }
+                    Console.WriteLine($"Hashed block for manifest matching: {fileBlock.Name} ({fileBlock.Length:N0} bytes) -> {ByteArrayToString(hash)}");
                 }
+
+                chunks.Add(fileBlock, new Block(fileBlock.FullName, hash, last64Bytes));
             }
 
             if (chunks.Count == 0)
@@ -737,7 +735,6 @@ namespace Mystiko.IO
                                 {
                                     throw new InvalidOperationException("Block creator returned 'null'");
                                 }
-
                                 source.Add(block);
 
                                 while (!chunkLast64Bytes.TryAdd(i, block.Last64Bytes))
@@ -805,12 +802,14 @@ namespace Mystiko.IO
 
                 source[i].FullHash = manifestChunkHash;
 
-                // Rename the file into the perturbed hash format
-                Debug.Assert(source[i].Path != null, "source[i].Path != null");
-                var chunkFileInfo = new FileInfo(source[i].Path);
-                Debug.Assert(chunkFileInfo.DirectoryName != null, "chunkFileInfo.DirectoryName != null");
-                var newChunkFileName = $"{chunkFileInfo.Name.Split(new[] { ".temp" }, StringSplitOptions.None)[0]}.{ByteArrayToString(manifestChunkHash).Substring(0, 8)}";
-                File.Move(source[i].Path, Path.Combine(chunkFileInfo.DirectoryName, newChunkFileName));
+                // Rename the file into the perturbed hash format, if this is not a metadata-only chunking
+                if (source[i].Path != null)
+                {
+                    var chunkFileInfo = new FileInfo(source[i].Path);
+                    Debug.Assert(chunkFileInfo.DirectoryName != null, "chunkFileInfo.DirectoryName != null");
+                    var newChunkFileName = $"{chunkFileInfo.Name.Split(new[] { ".temp" }, StringSplitOptions.None)[0]}.{ByteArrayToString(manifestChunkHash).Substring(0, 8)}";
+                    File.Move(source[i].Path, Path.Combine(chunkFileInfo.DirectoryName, newChunkFileName));
+                }
             }
 
             return new FileManifest

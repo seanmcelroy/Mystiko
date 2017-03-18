@@ -28,8 +28,7 @@ namespace Mystiko.Library.Tests.IO
             var localDirectory = @"C:\Users\Smcelroy\Documents\SpiderOak Hive\Pictures\Texas";
             if (!Directory.Exists(localDirectory))
             {
-                return;
-                // TODO: XUNIT does not support - Assert.Inconclusive($"Unable to find folder {localDirectory}");
+                Assert.True(false, $"Unable to find folder {localDirectory}");
             }
 
             var localManifest = await DirectoryUtility.PreHashDirectory(localDirectory, verbose: true);
