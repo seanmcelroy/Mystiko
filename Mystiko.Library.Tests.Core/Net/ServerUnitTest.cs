@@ -14,6 +14,7 @@ namespace Mystiko.Library.Tests.Net
     using System.Net;
     using System.Threading.Tasks;
 
+    using Mystiko.Database.Records;
     using Mystiko.Net;
 
     using Xunit;
@@ -24,6 +25,7 @@ namespace Mystiko.Library.Tests.Net
     public class ServerUnitTest
     {
         private readonly Tuple<ServerNodeIdentity, byte[]> _serverIdentity;
+        private readonly NodeConfiguration _nodeConfiguration;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerUnitTest"/> class.
@@ -31,12 +33,25 @@ namespace Mystiko.Library.Tests.Net
         public ServerUnitTest()
         {
             this._serverIdentity = ServerNodeIdentity.Generate(1);
+            this._nodeConfiguration = new NodeConfiguration
+            {
+                Identity = new ServerNodeIdentityAndKey
+                {
+                    DateEpoch = this._serverIdentity.Item1.DateEpoch,
+                    Nonce = this._serverIdentity.Item1.Nonce,
+                    PrivateKey = this._serverIdentity.Item2,
+                    PublicKeyX = this._serverIdentity.Item1.PublicKeyX,
+                    PublicKeyXBase64 = this._serverIdentity.Item1.PublicKeyXBase64,
+                    PublicKeyY = this._serverIdentity.Item1.PublicKeyY,
+                    PublicKeyYBase64 = this._serverIdentity.Item1.PublicKeyYBase64,
+                }
+            };
         }
 
         [Fact]
         public async Task Start()
         {
-            using (var server1 = new Server(false, () => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
+            using (var server1 = new Server(this._nodeConfiguration, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
             {
                 Assert.NotNull(server1);
                 await server1.StartAsync();
@@ -48,12 +63,12 @@ namespace Mystiko.Library.Tests.Net
         [Fact]
         public async Task ConnectToPeerAsync()
         {
-            using (var server1 = new Server(false, () => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
+            using (var server1 = new Server(this._nodeConfiguration, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any)))
             {
                 Assert.NotNull(server1);
                 await server1.StartAsync();
 
-                using (var server2 = new Server(false, () => this._serverIdentity, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any, 5108)))
+                using (var server2 = new Server(this._nodeConfiguration, () => new TcpServerChannel(this._serverIdentity.Item1, IPAddress.Any, 5108)))
                 {
                     Assert.NotNull(server2);
                     await server2.StartAsync();

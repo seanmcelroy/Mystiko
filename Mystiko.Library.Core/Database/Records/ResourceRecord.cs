@@ -1,4 +1,4 @@
-﻿namespace Mystiko.IO
+﻿namespace Mystiko.Database.Records
 {
     using JetBrains.Annotations;
 

@@ -49,8 +49,8 @@ namespace Mystiko.Node
 
             logger.Info("Creating node(s)...");
             var cts = new CancellationTokenSource();
-            using (var node1 = new Node { Tag = "#1" })
-            using (var node2 = new Node(listenerPort: 5108) { Tag = "#2", DisableLogging = true })
+            using (var node1 = new Node("#1", "node1"))
+            using (var node2 = new Node("#2", "node2", listenerPort: 5108) { DisableLogging = true })
             {
                 Task.Run(async () => { await node1.StartAsync(cts.Token); }, cts.Token);
                 Task.Run(async () => { await node2.StartAsync(cts.Token); }, cts.Token);
@@ -61,7 +61,7 @@ namespace Mystiko.Node
                         var fi = new FileInfo(@"C:\Users\smcelroy\Downloads\Git-2.11.0-64-bit.exe");
                         if (fi.Exists)
                             await node1.InsertFileAsync(fi);
-                        });
+                        }, cts.Token);
 
                 Console.WriteLine("Press ENTER to terminate all nodes");
                 Console.ReadLine();

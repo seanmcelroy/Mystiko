@@ -22,6 +22,8 @@ namespace Mystiko.Net
 
     using log4net;
 
+    using Mystiko.Database.Records;
+
     using Newtonsoft.Json;
 
     /// <summary>
@@ -35,11 +37,10 @@ namespace Mystiko.Net
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Server));
 
         /// <summary>
-        /// The identity of the server node, consisting of a date of generation, key pair, and nonce proving the date and public key
-        /// meet a target difficulty requirement.  It also includes the private key for local serialization and storage.
+        /// The configuration of the node in which this server instance is executing
         /// </summary>
         [NotNull]
-        private readonly ServerNodeIdentityAndKey _serverNodeIdentityAndKey;
+        private readonly NodeConfiguration _nodeConfiguration;
 
         /// <summary>
         /// The channel over which this server accepts connections
@@ -58,59 +59,21 @@ namespace Mystiko.Net
         /// <summary>
         /// Initializes a new instance of the <see cref="Server"/> class.
         /// </summary>
-        /// <param name="passive">
-        /// A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only
-        /// </param>
-        /// <param name="serverNodeIdentityFactory">
-        /// A function that returns a tuple of a <see cref="ServerNodeIdentity"/> and the private key of that identity as a byte array
+        /// <param name="configuration">
+        /// The configuration of this node
         /// </param>
         /// <param name="serverChannelFactory">
         /// A function that returns a <see cref="IServerChannel"/> for listening for incoming connections
         /// </param>
-        /// <param name="listenerPort">
-        /// The port on which to listen for peer client connections.  By default, this is 5109
-        /// </param>
         public Server(
-            bool passive = false,
-            [CanBeNull] Func<Tuple<ServerNodeIdentity, byte[]>> serverNodeIdentityFactory = null,
-            [CanBeNull] Func<IServerChannel> serverChannelFactory = null,
-            int listenerPort = 5109)
+            [NotNull] NodeConfiguration configuration,
+            [CanBeNull] Func<IServerChannel> serverChannelFactory = null)
         {
-            this.Passive = passive;
-
-            // Load or create node identity, TODO: Re-implement isolated storage when .NET Core supports it
-            var identityFile = Path.Combine(AppContext.BaseDirectory, $"node.identity.{listenerPort}.json");
-            if (!File.Exists(identityFile))
-            {
-                // Create new node identity
-                var newIdentityAndKey = (serverNodeIdentityFactory ?? (() => ServerNodeIdentity.Generate(3))).Invoke();
-
-                Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
-                this._serverNodeIdentityAndKey = new ServerNodeIdentityAndKey
-                                                    {
-                                                        DateEpoch = newIdentityAndKey.Item1.DateEpoch,
-                                                        Nonce = newIdentityAndKey.Item1.Nonce,
-                                                        PrivateKey = newIdentityAndKey.Item2,
-                                                        PublicKeyX = newIdentityAndKey.Item1.PublicKeyX,
-                                                        PublicKeyY = newIdentityAndKey.Item1.PublicKeyY,
-                                                    };
-
-                using (var fs = new FileStream(identityFile, FileMode.CreateNew))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.Write(JsonConvert.SerializeObject(this._serverNodeIdentityAndKey));
-                }
-            }
-
-            // Store the newly-created identity in isolated storage so we can quickly retrieve it again
-            using (var fs = new FileStream(identityFile, FileMode.Open))
-            using (var sr = new StreamReader(fs))
-            {
-                this._serverNodeIdentityAndKey = JsonConvert.DeserializeObject<ServerNodeIdentityAndKey>(sr.ReadToEnd());
-            }
+            this._nodeConfiguration = configuration;
 
             // Create network channel
-            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._serverNodeIdentityAndKey, IPAddress.Any, listenerPort))).Invoke();
+            Debug.Assert(this._nodeConfiguration.Identity != null, "this._nodeConfiguration.Identity != null");
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._nodeConfiguration.Identity, IPAddress.Any, this.ListenerPort))).Invoke();
             if (channel == null)
             {
                 throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));
@@ -129,6 +92,11 @@ namespace Mystiko.Net
         /// Gets or sets a value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only.
         /// </summary>
         public bool Passive { get; set; }
+
+        /// <summary>
+        /// Gets the port on which to listen for peer client connections.  By default, this is 5109
+        /// </summary>
+        public int ListenerPort { get; private set; }
 
         /// <summary>
         /// Places the server into a state where it listens for new connections

@@ -13,6 +13,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Database\Records\IdentityAnnounce.cs" />
+    <Compile Remove="Database\Records\IRecord.cs" />
+    <Compile Remove="Database\Records\RecordType.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="10.4.0" />
     <PackageReference Include="log4net" Version="2.0.8" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />

@@ -123,12 +123,32 @@
         }
 
         /// <summary>
+        /// Encrypts a stream and provides the output to the specified <paramref name="destination"/>
+        /// </summary>
+        /// <param name="source">The stream to encrypt</param>
+        /// <param name="encKey">The encryption key</param>
+        /// <param name="destination">The destination for the encrypted output</param>
+        [NotNull]
+        public static async Task EncryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] Stream destination)
+        {
+            byte[] iv;
+            using (var sha = SHA512.Create())
+            {
+                Debug.Assert(sha != null, "sha != null");
+                iv = sha.ComputeHash(encKey).Take(16).ToArray();
+            }
+
+            Debug.Assert(iv != null, "iv != null");
+            await EncryptStreamAsync(source, encKey, iv, destination);
+        }
+
+        /// <summary>
         /// Encrypts a file stream and provides the output to the specified <paramref name="destination"/>
         /// </summary>
         /// <param name="source">The stream to encrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
-        /// <param name="destination">The destination for the output encrypted stream</param>
+        /// <param name="destination">The destination for the encrypted output</param>
         [NotNull]
         public static async Task EncryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] Stream destination)
         {
@@ -207,6 +227,25 @@
         /// </summary>
         /// <param name="source">The stream to encrypt</param>
         /// <param name="encKey">The encryption key</param>
+        /// <param name="destination">The destination for the output decrypted stream</param>
+        [NotNull]
+        public static async Task DecryptStreamAsync([NotNull] Stream source, byte[] encKey, [NotNull] Stream destination)
+        {
+            byte[] iv;
+            using (var sha = SHA512.Create())
+            {
+                Debug.Assert(sha != null, "sha != null");
+                iv = sha.ComputeHash(encKey).Take(16).ToArray();
+            }
+
+            await DecryptStreamAsync(source, encKey, iv, destination);
+        }
+
+        /// <summary>
+        /// Decrypts a file stream and provides the output to the specified <paramref name="destination"/>
+        /// </summary>
+        /// <param name="source">The stream to encrypt</param>
+        /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
         /// <param name="destination">The destination for the output decrypted stream</param>
         [NotNull]
@@ -222,10 +261,15 @@
                 aes.Padding = PaddingMode.Zeros;
                 using (var decryptor = aes.CreateDecryptor(encKey, iv))
                 {
-                    using (var csBlock = new CryptoStream(destination, decryptor, CryptoStreamMode.Write))
+                    using (var csBlock = new CryptoStream(source, decryptor, CryptoStreamMode.Read))
                     {
-                        await source.CopyToAsync(csBlock);
-                        csBlock.FlushFinalBlock();
+                        var decryptBuffer = new byte[4096];
+                        var read = await csBlock.ReadAsync(decryptBuffer, 0, decryptBuffer.Length);
+                        while (read > 0)
+                        {
+                            await destination.WriteAsync(decryptBuffer, 0, read);
+                            read = await csBlock.ReadAsync(decryptBuffer, 0, decryptBuffer.Length);
+                        }
                     }
                 }
             }

@@ -11,6 +11,7 @@
 namespace Mystiko.Node.Core
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Security.Cryptography;
@@ -22,6 +23,7 @@ namespace Mystiko.Node.Core
     using log4net;
 
     using Mystiko.Cryptography;
+    using Mystiko.Database.Records;
     using Mystiko.IO;
 
     using Net;
@@ -45,6 +47,12 @@ namespace Mystiko.Node.Core
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Node));
 
         /// <summary>
+        /// Gets or sets the configuration of this node
+        /// </summary>
+        [CanBeNull]
+        private NodeConfiguration Configuration { get; set; }
+
+        /// <summary>
         /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
         /// </summary>
         public bool DisableLogging { get; set; }
@@ -52,8 +60,8 @@ namespace Mystiko.Node.Core
         /// <summary>
         /// The network server object
         /// </summary>
-        [NotNull]
-        private readonly Server server;
+        [CanBeNull]
+        private Server server;
 
         /// <summary>
         /// If a lock file exists, this is the stream holding that lock
@@ -69,21 +77,91 @@ namespace Mystiko.Node.Core
         /// <summary>
         /// Initializes a new instance of the <see cref="Node"/> class.
         /// </summary>
+        /// <param name="password">The password used to unlock the node's database</param>
         /// <param name="passive">
         /// A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only
         /// </param>
         /// <param name="listenerPort">
         /// The port on which to listen for peer client connections.  By default, this is 5109
         /// </param>
-        public Node(bool passive = false, int listenerPort = 5109)
+        public Node(
+            [NotNull] string tag,
+            [NotNull] string password,
+            bool? passive = null, 
+            int? listenerPort = null)
         {
-            this.server = new Server(passive, listenerPort: listenerPort);
+            this.Tag = tag;
+
+            var scrypt = new Scrypt.ScryptEncoder(16384 * 512, 8 * 512, 1 * 64);
+            var encodedPassword = scrypt.Encode(password);
+            Console.WriteLine($"Encoded password: {encodedPassword}");
+
+            this.LoadConfigurationAsync(
+                encodedPassword,
+                passive ?? false,
+                listenerPort ?? 5109).GetAwaiter().GetResult();
+            Debug.Assert(this.Configuration != null, "this.Configuration != null");
         }
 
         /// <summary>
         /// Gets or sets the tag, a name of a node that can be used to identify it in multiple-node local simulations
         /// </summary>
         public string Tag { get; set; }
+
+        [NotNull]
+        private async Task LoadConfigurationAsync(
+            string encodedPassword,
+            bool passive,
+            int listenerPort)
+        {
+            var configurationFile = Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
+            var encKey = System.Text.Encoding.UTF8.GetBytes(encodedPassword).Take(32).ToArray();
+
+            if (File.Exists(configurationFile))
+                File.Delete(configurationFile);
+
+            if (!File.Exists(configurationFile))
+            {
+                // Create new node configuration file
+                this.Configuration = new NodeConfiguration
+                                     {
+                                         Passive = passive,
+                                         ListenerPort = listenerPort
+                                     };
+
+                var newIdentityAndKey = ServerNodeIdentity.Generate(3);
+                Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
+                this.Configuration.Identity = new ServerNodeIdentityAndKey
+                {
+                    DateEpoch = newIdentityAndKey.Item1.DateEpoch,
+                    Nonce = newIdentityAndKey.Item1.Nonce,
+                    PrivateKey = newIdentityAndKey.Item2,
+                    PublicKeyX = newIdentityAndKey.Item1.PublicKeyX,
+                    PublicKeyY = newIdentityAndKey.Item1.PublicKeyY,
+                };
+
+                using (var fs = new FileStream(configurationFile, FileMode.CreateNew))
+                {
+                    var serializedConfiguration = JsonConvert.SerializeObject(this.Configuration);
+                    var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serializedConfiguration));
+                    await EncryptUtility.EncryptStreamAsync(stream, encKey, fs);
+                }
+            }
+
+            // Read configuration file
+            using (var fs = new FileStream(configurationFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var encryptedConfigBytes = new byte[fs.Length];
+                await fs.ReadAsync(encryptedConfigBytes, 0, (int)fs.Length);
+                var decryptedStream = new MemoryStream();
+                await EncryptUtility.DecryptStreamAsync(new MemoryStream(encryptedConfigBytes), encKey, decryptedStream);
+                var decryptedBytes = decryptedStream.ToArray();
+                Debug.Assert(decryptedBytes != null, "decryptedBytes.Length != null");
+                Debug.Assert(decryptedBytes.Length > 0, "decryptedBytes.Length > 0");
+                var serializedConfiguration = System.Text.Encoding.UTF8.GetString(decryptedBytes).TrimEnd('\0');
+                this.Configuration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
+            }
+        }
 
         /// <summary>
         /// Starts a node's local file system and networking functions
@@ -92,6 +170,11 @@ namespace Mystiko.Node.Core
         /// <returns>A value indicating whether the server is behind a firewall or NAT that prevent it from operating a server process on the Internet that can accept inbound connection requests</returns>
         public async Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
+            if (this.Configuration == null)
+                throw new InvalidOperationException("Configuration has not been loaded");
+
+            this.server = new Server(this.Configuration);
+
             // Setup data directory
 
             // Lock file
@@ -106,7 +189,6 @@ namespace Mystiko.Node.Core
             {
                 Directory.CreateDirectory(repoDirectory);
             }
-
 
             var lockFile = Path.Combine(libraryDirectory, "lock");
             if (!File.Exists(lockFile))
@@ -202,6 +284,8 @@ namespace Mystiko.Node.Core
                     using (var br = new BinaryReader(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, 32)))
                     {
                         var fileFirst32 = br.ReadBytes(32);
+                        Debug.Assert(fileFirst32 != null, "fileFirst32 != null");
+                        Debug.Assert(fileFirst32.Length == 32, "fileFirst32.Length == 32");
                         blockXors = FileUtility.ExclusiveOr(blockXors, fileFirst32);
                     }
                 }
@@ -231,6 +315,8 @@ namespace Mystiko.Node.Core
              */
             using (var rng = RandomNumberGenerator.Create())
             {
+                Debug.Assert(rng != null, "rng != null");
+
                 var rr = new ResourceRecord
                          {
                              TemporalFileID = tfid,

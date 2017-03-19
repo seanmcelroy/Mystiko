@@ -14,6 +14,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Scrypt.NETCore" Version="1.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Mystiko.Library.Core\Mystiko.Library.Core.csproj" />
   </ItemGroup>
 
