@@ -51,11 +51,17 @@ namespace Mystiko.Node.Core
         /// </summary>
         [CanBeNull]
         private NodeConfiguration Configuration { get; set; }
-
+        
         /// <summary>
         /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
         /// </summary>
         public bool DisableLogging { get; set; }
+
+        /// <summary>
+        /// Gets or sets the scrypt encoded password once provided to the node
+        /// </summary>
+        [NotNull]
+        private readonly string encodedPassword;
 
         /// <summary>
         /// The network server object
@@ -84,22 +90,16 @@ namespace Mystiko.Node.Core
         /// <param name="listenerPort">
         /// The port on which to listen for peer client connections.  By default, this is 5109
         /// </param>
-        public Node(
-            [NotNull] string tag,
-            [NotNull] string password,
-            bool? passive = null, 
-            int? listenerPort = null)
+        public Node([NotNull] string tag, [NotNull] string password, bool? passive = null, int? listenerPort = null)
         {
+            if (tag == null)
+                throw new ArgumentNullException(nameof(tag));
+
+            if (password == null)
+                throw new ArgumentNullException(nameof(password));
+
             this.Tag = tag;
-
-            var scrypt = new Scrypt.ScryptEncoder(16384 * 512, 8 * 512, 1 * 64);
-            var encodedPassword = scrypt.Encode(password);
-            Console.WriteLine($"Encoded password: {encodedPassword}");
-
-            this.LoadConfigurationAsync(
-                encodedPassword,
-                passive ?? false,
-                listenerPort ?? 5109).GetAwaiter().GetResult();
+            this.LoadConfigurationInternalAsync(null, password, passive, listenerPort).GetAwaiter().GetResult();
             Debug.Assert(this.Configuration != null, "this.Configuration != null");
         }
 
@@ -108,59 +108,170 @@ namespace Mystiko.Node.Core
         /// </summary>
         public string Tag { get; set; }
 
-        [NotNull]
-        private async Task LoadConfigurationAsync(
-            string encodedPassword,
-            bool passive,
-            int listenerPort)
+        public static async Task<NodeConfiguration> LoadConfigurationAsync(
+            [NotNull] string filePath,
+            [NotNull] string password,
+            bool? passive = null,
+            int? listenerPort = null)
         {
-            var configurationFile = Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
-            var encKey = System.Text.Encoding.UTF8.GetBytes(encodedPassword).Take(32).ToArray();
-
-            if (File.Exists(configurationFile))
-                File.Delete(configurationFile);
+            NodeConfiguration ret;
+            var configurationFile = filePath;
 
             if (!File.Exists(configurationFile))
             {
                 // Create new node configuration file
-                this.Configuration = new NodeConfiguration
-                                     {
-                                         Passive = passive,
-                                         ListenerPort = listenerPort
-                                     };
+                ret = new NodeConfiguration
+                {
+                    Passive = passive ?? false,
+                    ListenerPort = listenerPort ?? 5109
+                };
 
                 var newIdentityAndKey = ServerNodeIdentity.Generate(3);
                 Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
-                this.Configuration.Identity = new ServerNodeIdentityAndKey
+                ret.Identity = new ServerNodeIdentityAndKey
                 {
                     DateEpoch = newIdentityAndKey.Item1.DateEpoch,
                     Nonce = newIdentityAndKey.Item1.Nonce,
                     PrivateKey = newIdentityAndKey.Item2,
                     PublicKeyX = newIdentityAndKey.Item1.PublicKeyX,
-                    PublicKeyY = newIdentityAndKey.Item1.PublicKeyY,
+                    PublicKeyY = newIdentityAndKey.Item1.PublicKeyY
                 };
-
-                using (var fs = new FileStream(configurationFile, FileMode.CreateNew))
-                {
-                    var serializedConfiguration = JsonConvert.SerializeObject(this.Configuration);
-                    var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serializedConfiguration));
-                    await EncryptUtility.EncryptStreamAsync(stream, encKey, fs);
-                }
+                
+                await SaveConfigurationAsync(filePath, password, ret);
             }
 
             // Read configuration file
             using (var fs = new FileStream(configurationFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                var encryptedConfigBytes = new byte[fs.Length];
-                await fs.ReadAsync(encryptedConfigBytes, 0, (int)fs.Length);
+                // Read salt
+                var salt = new byte[64];
+                var read = await fs.ReadAsync(salt, 0, 64);
+                Debug.Assert(read == 64);
+                Debug.Assert(fs.Position == 64);
+
+                // Get encryption key
+                byte[] encKey;
+                using (var pbkdf2Encoder = new Rfc2898DeriveBytes(password, salt, 100000))
+                {
+                    encKey = pbkdf2Encoder.GetBytes(32);
+                    pbkdf2Encoder.Reset();
+                }
+                Debug.Assert(encKey != null, "encKey != null");
+                
+                var encryptedBytes = new byte[fs.Length - 64];
+                await fs.ReadAsync(encryptedBytes, 0, encryptedBytes.Length);
                 var decryptedStream = new MemoryStream();
-                await EncryptUtility.DecryptStreamAsync(new MemoryStream(encryptedConfigBytes), encKey, decryptedStream);
+                await EncryptUtility.DecryptStreamAsync(new MemoryStream(encryptedBytes), encKey, decryptedStream);
                 var decryptedBytes = decryptedStream.ToArray();
                 Debug.Assert(decryptedBytes != null, "decryptedBytes.Length != null");
                 Debug.Assert(decryptedBytes.Length > 0, "decryptedBytes.Length > 0");
-                var serializedConfiguration = System.Text.Encoding.UTF8.GetString(decryptedBytes).TrimEnd('\0');
-                this.Configuration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
+
+                var decryptedString = System.Text.Encoding.UTF8.GetString(decryptedBytes).TrimEnd('\0');
+                Debug.Assert(decryptedString != null, "decryptedString != null");
+                if (string.CompareOrdinal(decryptedString, 0, "MYSTIKO!", 0, 8) != 0)
+                {
+                    throw new InvalidOperationException("Incorrect password");
+                }
+
+                var version = Convert.ToInt32(decryptedString.Substring(8, 8));
+
+                var serializedConfiguration = decryptedString.Substring(16);
+                ret = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
             }
+
+            return ret;
+        }
+
+        [NotNull]
+        private async Task LoadConfigurationInternalAsync(
+            [CanBeNull] string configurationFile,
+            [NotNull] string password,
+            bool? passive = null,
+            int? listenerPort = null)
+        {
+            configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
+            Debug.Assert(configurationFile != null, "configurationFile != null");
+            this.Configuration = await LoadConfigurationAsync(configurationFile, password, passive, listenerPort);
+        }
+        
+        [NotNull]
+        public static async Task SaveConfigurationAsync(
+            [NotNull] string configurationFile, 
+            [NotNull] string password,
+            [NotNull] NodeConfiguration configuration)
+        {
+            if (configuration == null)
+                throw new InvalidOperationException("No configuration has been loaded");
+
+            var salt = new byte[64];
+            if (File.Exists(configurationFile))
+            {
+                // Get existing salt
+                using (var fs = new FileStream(configurationFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    var read = await fs.ReadAsync(salt, 0, 64);
+                    Debug.Assert(read == 64);
+                }
+
+                File.Delete(configurationFile);
+            }
+            else
+            {
+                // Create new salt
+                using (var rng = RandomNumberGenerator.Create())
+                {
+                    Debug.Assert(rng != null, "rng != null");
+                    rng.GetBytes(salt);
+                }
+            }
+
+            // Get encryption key
+            byte[] encKey;
+            using (var pbkdf2Encoder = new Rfc2898DeriveBytes(password, salt, 100000))
+            {
+                encKey = pbkdf2Encoder.GetBytes(32);
+                pbkdf2Encoder.Reset();
+            }
+            Debug.Assert(encKey != null, "encKey != null");
+            
+            // Write header then data
+            using (var fs = new FileStream(configurationFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                var outputStream = new MemoryStream();
+
+                // Write salt
+                await fs.WriteAsync(salt, 0, 64);
+
+                // Write known text
+                var knownTextBytes = System.Text.Encoding.UTF8.GetBytes("MYSTIKO!");
+                Debug.Assert(knownTextBytes != null, "knownTextBytes != null");
+                await outputStream.WriteAsync(knownTextBytes, 0, knownTextBytes.Length);
+
+                // Write version
+                var versionBytes = System.Text.Encoding.UTF8.GetBytes("00000001");
+                await outputStream.WriteAsync(versionBytes, 0, versionBytes.Length);
+
+                // Write content
+                var serializedConfiguration = JsonConvert.SerializeObject(configuration);
+                var serializedConfigurationBytes = System.Text.Encoding.UTF8.GetBytes(serializedConfiguration);
+                await outputStream.WriteAsync(serializedConfigurationBytes, 0, serializedConfigurationBytes.Length);
+
+                outputStream.Seek(0, SeekOrigin.Begin);
+                await EncryptUtility.EncryptStreamAsync(outputStream, encKey, fs);
+            }
+        }
+        
+        [NotNull]
+        private async Task SaveConfigurationInternalAsync(
+            [CanBeNull] string configurationFile)
+        {
+            if (this.Configuration == null)
+                throw new InvalidOperationException("No configuration has been loaded");
+
+            configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
+            Debug.Assert(configurationFile != null, "configurationFile != null");
+
+            await SaveConfigurationAsync(configurationFile, this.encodedPassword, this.Configuration);
         }
 
         /// <summary>
@@ -328,6 +439,12 @@ namespace Mystiko.Node.Core
                                  return BitConverter.ToInt32(iBytes, 0);
                              }).ToArray()
                          };
+
+                Debug.Assert(this.Configuration != null, "this.Configuration != null");
+                Debug.Assert(this.Configuration.ResourceRecords != null, "this.Configuration.ResourceRecords != null");
+                this.Configuration.ResourceRecords.Add(rr);
+
+                await this.SaveConfigurationInternalAsync(null);
 
                 using (var fs = new FileStream(Path.Combine(dataDirectory, tfid + ".rr"), FileMode.CreateNew))
                 using (var sw = new StreamWriter(fs))

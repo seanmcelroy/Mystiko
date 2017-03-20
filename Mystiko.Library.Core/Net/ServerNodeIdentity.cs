@@ -30,6 +30,10 @@ namespace Mystiko.Net
     /// </summary>
     public class ServerNodeIdentity
     {
+        private byte[] _publicKeyX;
+
+        private byte[] _publicKeyY;
+
         /// <summary>
         /// Gets or sets the date the node keys were created
         /// </summary>
@@ -39,7 +43,19 @@ namespace Mystiko.Net
         /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
         [NotNull]
-        public byte[] PublicKeyX { get; set; }
+        public byte[] PublicKeyX
+        {
+            get
+            {
+                return this._publicKeyX;
+            }
+            set
+            {
+                Debug.Assert(value != null, "value != null");
+                Debug.Assert(value.Length == 32, "value.Length == 32");
+                this._publicKeyX = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the base-64 encoded value of the public key X-value for this identity
@@ -62,7 +78,19 @@ namespace Mystiko.Net
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
-        public byte[] PublicKeyY { get; set; }
+        public byte[] PublicKeyY
+        {
+            get
+            {
+                return this._publicKeyY;
+            }
+            set
+            {
+                Debug.Assert(value != null, "value != null");
+                Debug.Assert(value.Length == 32, "value.Length == 32");
+                this._publicKeyY = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the base-64 encoded value of the public key Y-value for this identity

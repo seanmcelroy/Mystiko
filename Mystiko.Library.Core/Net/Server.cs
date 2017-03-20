@@ -69,6 +69,14 @@ namespace Mystiko.Net
             [NotNull] NodeConfiguration configuration,
             [CanBeNull] Func<IServerChannel> serverChannelFactory = null)
         {
+            Debug.Assert(configuration != null);
+            Debug.Assert(configuration.Identity != null, "configuration.Identity != null");
+            Debug.Assert(configuration.Identity.PrivateKey != null, "configuration.Identity.PrivateKey != null");
+            Debug.Assert(configuration.Identity.PublicKeyX != null, "configuration.Identity.PublicKeyX != null");
+            Debug.Assert(configuration.Identity.PublicKeyX.Length == 32, "configuration.Identity.PublicKeyX.Length == 32");
+            Debug.Assert(configuration.Identity.PublicKeyY != null, "configuration.Identity.PublicKeyY != null");
+            Debug.Assert(configuration.Identity.PublicKeyY.Length == 32, "configuration.Identity.PublicKeyY.Length == 32");
+
             this._nodeConfiguration = configuration;
 
             // Create network channel

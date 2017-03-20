@@ -152,8 +152,6 @@
         [NotNull]
         public static async Task EncryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] Stream destination)
         {
-            source.Seek(0, SeekOrigin.Begin);
-
             using (var aes = Aes.Create())
             {
                 Debug.Assert(aes != null, "aes != null");
