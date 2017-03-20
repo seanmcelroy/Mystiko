@@ -196,12 +196,13 @@ namespace Mystiko.Node.Core
         
         [NotNull]
         public static async Task SaveConfigurationAsync(
-            [NotNull] string configurationFile, 
-            [NotNull] string password,
+            [NotNull] string configurationFile, [NotNull] string password,
             [NotNull] NodeConfiguration configuration)
         {
             if (configuration == null)
                 throw new InvalidOperationException("No configuration has been loaded");
+            if (password == null)
+                throw new ArgumentNullException(nameof(password));
 
             var salt = new byte[64];
             if (File.Exists(configurationFile))
@@ -263,15 +264,17 @@ namespace Mystiko.Node.Core
         
         [NotNull]
         private async Task SaveConfigurationInternalAsync(
-            [CanBeNull] string configurationFile)
+            [CanBeNull] string configurationFile, [NotNull] string password)
         {
+            if (password == null)
+                throw new ArgumentNullException(nameof(password));
             if (this.Configuration == null)
                 throw new InvalidOperationException("No configuration has been loaded");
 
             configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
             Debug.Assert(configurationFile != null, "configurationFile != null");
 
-            await SaveConfigurationAsync(configurationFile, this.encodedPassword, this.Configuration);
+            await SaveConfigurationAsync(configurationFile, password, this.Configuration);
         }
 
         /// <summary>
@@ -444,7 +447,8 @@ namespace Mystiko.Node.Core
                 Debug.Assert(this.Configuration.ResourceRecords != null, "this.Configuration.ResourceRecords != null");
                 this.Configuration.ResourceRecords.Add(rr);
 
-                await this.SaveConfigurationInternalAsync(null);
+                throw new InvalidOperationException("FIX THIS. password not persisted in node");
+                await this.SaveConfigurationInternalAsync(null, null);
 
                 using (var fs = new FileStream(Path.Combine(dataDirectory, tfid + ".rr"), FileMode.CreateNew))
                 using (var sw = new StreamWriter(fs))
