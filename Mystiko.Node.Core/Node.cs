@@ -51,17 +51,23 @@ namespace Mystiko.Node.Core
         /// </summary>
         [CanBeNull]
         private NodeConfiguration Configuration { get; set; }
-        
+
+        /// <summary>
+        /// Gets or sets the salt for the encryption of the configuration of this node
+        /// </summary>
+        [CanBeNull]
+        private byte[] Salt { get; set; }
+
+        /// <summary>
+        /// Gets or sets the encryption key for the configuration of this node
+        /// </summary>
+        [CanBeNull]
+        private byte[] EncryptionKey { get; set; }
+
         /// <summary>
         /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
         /// </summary>
         public bool DisableLogging { get; set; }
-
-        /// <summary>
-        /// Gets or sets the scrypt encoded password once provided to the node
-        /// </summary>
-        [NotNull]
-        private readonly string encodedPassword;
 
         /// <summary>
         /// The network server object
@@ -108,19 +114,20 @@ namespace Mystiko.Node.Core
         /// </summary>
         public string Tag { get; set; }
 
-        public static async Task<NodeConfiguration> LoadConfigurationAsync(
+        [NotNull, Pure, ItemNotNull]
+        public static async Task<Tuple<NodeConfiguration, byte[], byte[]>> LoadConfigurationAsync(
             [NotNull] string filePath,
             [NotNull] string password,
             bool? passive = null,
             int? listenerPort = null)
         {
-            NodeConfiguration ret;
+            NodeConfiguration nodeConfiguration;
             var configurationFile = filePath;
 
             if (!File.Exists(configurationFile))
             {
                 // Create new node configuration file
-                ret = new NodeConfiguration
+                nodeConfiguration = new NodeConfiguration
                 {
                     Passive = passive ?? false,
                     ListenerPort = listenerPort ?? 5109
@@ -128,7 +135,7 @@ namespace Mystiko.Node.Core
 
                 var newIdentityAndKey = ServerNodeIdentity.Generate(3);
                 Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
-                ret.Identity = new ServerNodeIdentityAndKey
+                nodeConfiguration.Identity = new ServerNodeIdentityAndKey
                 {
                     DateEpoch = newIdentityAndKey.Item1.DateEpoch,
                     Nonce = newIdentityAndKey.Item1.Nonce,
@@ -137,20 +144,20 @@ namespace Mystiko.Node.Core
                     PublicKeyY = newIdentityAndKey.Item1.PublicKeyY
                 };
                 
-                await SaveConfigurationAsync(filePath, password, ret);
+                await SaveConfigurationAsync(filePath, password, nodeConfiguration);
             }
 
             // Read configuration file
+            var salt = new byte[64];
+            byte[] encKey;
             using (var fs = new FileStream(configurationFile, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 // Read salt
-                var salt = new byte[64];
                 var read = await fs.ReadAsync(salt, 0, 64);
                 Debug.Assert(read == 64);
                 Debug.Assert(fs.Position == 64);
 
                 // Get encryption key
-                byte[] encKey;
                 using (var pbkdf2Encoder = new Rfc2898DeriveBytes(password, salt, 100000))
                 {
                     encKey = pbkdf2Encoder.GetBytes(32);
@@ -176,10 +183,10 @@ namespace Mystiko.Node.Core
                 var version = Convert.ToInt32(decryptedString.Substring(8, 8));
 
                 var serializedConfiguration = decryptedString.Substring(16);
-                ret = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
+                nodeConfiguration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
             }
 
-            return ret;
+            return new Tuple<NodeConfiguration, byte[], byte[]>(nodeConfiguration, salt, encKey);
         }
 
         [NotNull]
@@ -191,19 +198,18 @@ namespace Mystiko.Node.Core
         {
             configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
             Debug.Assert(configurationFile != null, "configurationFile != null");
-            this.Configuration = await LoadConfigurationAsync(configurationFile, password, passive, listenerPort);
+            var ret = await LoadConfigurationAsync(configurationFile, password, passive, listenerPort);
+            this.Configuration = ret.Item1;
+            this.Salt = ret.Item2;
+            this.EncryptionKey = ret.Item3;
         }
-        
+
         [NotNull]
         public static async Task SaveConfigurationAsync(
-            [NotNull] string configurationFile, [NotNull] string password,
+            [NotNull] string configurationFile,
+            [NotNull] string password,
             [NotNull] NodeConfiguration configuration)
         {
-            if (configuration == null)
-                throw new InvalidOperationException("No configuration has been loaded");
-            if (password == null)
-                throw new ArgumentNullException(nameof(password));
-
             var salt = new byte[64];
             if (File.Exists(configurationFile))
             {
@@ -234,8 +240,26 @@ namespace Mystiko.Node.Core
                 pbkdf2Encoder.Reset();
             }
             Debug.Assert(encKey != null, "encKey != null");
+
+            await SaveConfigurationAsync(configurationFile, salt, encKey, configuration);
+        }
+
+        [NotNull]
+        public static async Task SaveConfigurationAsync(
+            [NotNull] string configurationFile,
+            [NotNull] byte[] salt,
+            [NotNull] byte[] encryptionKey,
+            [NotNull] NodeConfiguration configuration)
+        {
+            if (configuration == null)
+                throw new InvalidOperationException("No configuration has been loaded");
+            if (encryptionKey == null)
+                throw new ArgumentNullException(nameof(encryptionKey));
             
             // Write header then data
+            if (File.Exists(configurationFile))
+                File.Delete(configurationFile);
+
             using (var fs = new FileStream(configurationFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 var outputStream = new MemoryStream();
@@ -258,23 +282,23 @@ namespace Mystiko.Node.Core
                 await outputStream.WriteAsync(serializedConfigurationBytes, 0, serializedConfigurationBytes.Length);
 
                 outputStream.Seek(0, SeekOrigin.Begin);
-                await EncryptUtility.EncryptStreamAsync(outputStream, encKey, fs);
+                await EncryptUtility.EncryptStreamAsync(outputStream, encryptionKey, fs);
             }
         }
         
         [NotNull]
         private async Task SaveConfigurationInternalAsync(
-            [CanBeNull] string configurationFile, [NotNull] string password)
+            [CanBeNull] string configurationFile, [NotNull] byte[] salt, [NotNull] byte[] encryptionKey)
         {
-            if (password == null)
-                throw new ArgumentNullException(nameof(password));
+            if (encryptionKey == null)
+                throw new ArgumentNullException(nameof(encryptionKey));
             if (this.Configuration == null)
                 throw new InvalidOperationException("No configuration has been loaded");
 
             configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
             Debug.Assert(configurationFile != null, "configurationFile != null");
 
-            await SaveConfigurationAsync(configurationFile, password, this.Configuration);
+            await SaveConfigurationAsync(configurationFile, salt, encryptionKey, this.Configuration);
         }
 
         /// <summary>
@@ -447,8 +471,7 @@ namespace Mystiko.Node.Core
                 Debug.Assert(this.Configuration.ResourceRecords != null, "this.Configuration.ResourceRecords != null");
                 this.Configuration.ResourceRecords.Add(rr);
 
-                throw new InvalidOperationException("FIX THIS. password not persisted in node");
-                await this.SaveConfigurationInternalAsync(null, null);
+                await this.SaveConfigurationInternalAsync(null, this.Salt, this.EncryptionKey);
 
                 using (var fs = new FileStream(Path.Combine(dataDirectory, tfid + ".rr"), FileMode.CreateNew))
                 using (var sw = new StreamWriter(fs))
