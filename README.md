@@ -61,6 +61,15 @@ of all encrypted parts.
 The size of encrypted blocks are random so as to obscure which block is the
 final one.  This behavior can be overridden with the '--size' parameter.
 
+The process to encrypt a file is generally as follows:
+
+![Encryption](https://seanmcelroy.github.io/Mystiko/Documentation/Encryption.svg)
+
+And the decryption process requires both the resource record as well as
+all the encrypted parts
+
+![Decryption](https://seanmcelroy.github.io/Mystiko/Documentation/Decryption.svg)
+
 #### Example usage
 
 To encrypt a file into split parts and a manifest:
