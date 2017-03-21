@@ -9,9 +9,9 @@
 
 namespace Mystiko.Library.Tests.Cryptography
 {
-    using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Security.Cryptography;
     using System.Threading.Tasks;
 
     using Mystiko.Cryptography;
@@ -88,9 +88,14 @@ namespace Mystiko.Library.Tests.Cryptography
                                     Passive = false,
                                     ResourceRecords = new System.Collections.Generic.List<ResourceRecord>()
                                 };
-            var scrypt = new Scrypt.ScryptEncoder(16384 * 512, 8 * 512, 1 * 64);
-            var encodedPassword = scrypt.Encode("test");
-            var encKey = System.Text.Encoding.UTF8.GetBytes(encodedPassword).Take(32).ToArray();
+
+            // Get encryption key
+            byte[] encKey;
+            using (var pbkdf2Encoder = new Rfc2898DeriveBytes("test", new byte[64], 100000))
+            {
+                encKey = pbkdf2Encoder.GetBytes(32);
+                pbkdf2Encoder.Reset();
+            }
             Assert.NotNull(encKey);
 
             // Encrypt

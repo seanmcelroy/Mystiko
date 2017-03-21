@@ -20,6 +20,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mystiko.Node.Core", "Mystik
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mystiko.Browser.Thick.Windows", "Mystiko.Browser.Thick.Windows\Mystiko.Browser.Thick.Windows.csproj", "{CFAD0193-8FA0-4284-B684-07E9C92A431C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{467E9EF8-6BA5-443C-9F9F-9B17F7BB35FB}"
+	ProjectSection(SolutionItems) = preProject
+		Documentation\Decryption.svg = Documentation\Decryption.svg
+		Documentation\Encryption.svg = Documentation\Encryption.svg
+		Documentation\Mystiko.vsdx = Documentation\Mystiko.vsdx
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -49,5 +56,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{467E9EF8-6BA5-443C-9F9F-9B17F7BB35FB} = {36489263-D8F8-439D-BFA0-AE656A74AC44}
 	EndGlobalSection
 EndGlobal

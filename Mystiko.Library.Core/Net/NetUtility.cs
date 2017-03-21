@@ -10,10 +10,13 @@
 namespace Mystiko.Net
 {
     using System;
+    using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Net;
     using System.Net.Http;
     using System.Net.Sockets;
+    using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -31,6 +34,9 @@ namespace Mystiko.Net
         /// </summary>
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NetUtility));
 
+        [CanBeNull]
+        private static IPAddress publicIpAddress;
+
         /// <summary>
         /// Determines the public Internet IP address for this node as it would appear to remote nodes in other networks
         /// </summary>
@@ -39,9 +45,13 @@ namespace Mystiko.Net
         [NotNull, ItemCanBeNull, Pure]
         internal static async Task<IPAddress> FindPublicIPAddressAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
+            if (publicIpAddress != null)
+                return publicIpAddress;
+
             var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me", @"http://ifconfig.me/ip" };
 
-            foreach (var source in sources)
+            var random = new Random(Environment.TickCount);
+            foreach (var source in sources.OrderBy(x => random.Next(1000)))
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -69,6 +79,7 @@ namespace Mystiko.Net
                         }
 
                         Logger.Info($"External IP address determined to be {publicIp} from remote source {source}");
+                        publicIpAddress = publicIp;
                         return publicIp;
                     }
                     catch (Exception ex)

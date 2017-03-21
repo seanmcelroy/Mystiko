@@ -53,6 +53,12 @@ namespace Mystiko.Node.Core
         private NodeConfiguration Configuration { get; set; }
 
         /// <summary>
+        /// Gets or sets the location of this node
+        /// </summary>
+        [CanBeNull]
+        private byte[] Location { get; set; }
+
+        /// <summary>
         /// Gets or sets the salt for the encryption of the configuration of this node
         /// </summary>
         [CanBeNull]
@@ -114,6 +120,14 @@ namespace Mystiko.Node.Core
         /// </summary>
         public string Tag { get; set; }
 
+        /// <summary>
+        /// Loads the configuration from a configuration file
+        /// </summary>
+        /// <param name="filePath">The path of the configuration file to load</param>
+        /// <param name="password">The user-supplied password used to derive the encryption key used to decode the configuration file</param>
+        /// <param name="passive">A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only</param>
+        /// <param name="listenerPort">The port on which to listen for peer client connections.  By default, this is 5109</param>
+        /// <returns>A tuple containing the node configuration, the salt value, and the encryption key used to decode the configuration file</returns>
         [NotNull, Pure, ItemNotNull]
         public static async Task<Tuple<NodeConfiguration, byte[], byte[]>> LoadConfigurationAsync(
             [NotNull] string filePath,
@@ -199,9 +213,14 @@ namespace Mystiko.Node.Core
             configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
             Debug.Assert(configurationFile != null, "configurationFile != null");
             var ret = await LoadConfigurationAsync(configurationFile, password, passive, listenerPort);
+            Debug.Assert(ret.Item1 != null, "ret.Item1 != null");
+            Debug.Assert(ret.Item1.Identity != null, "ret.Item1.Identity != null");
             this.Configuration = ret.Item1;
             this.Salt = ret.Item2;
             this.EncryptionKey = ret.Item3;
+
+            this.Location = FileUtility.ExclusiveOr(this.Configuration.Identity.PublicKeyX, this.Configuration.Identity.PublicKeyY);
+            Logger.Debug($"{this.Configuration.Identity.GetCompositeHash().Substring(3, 8)}: Node location: {FileUtility.ByteArrayToString(this.Location)}");
         }
 
         [NotNull]
