@@ -11,6 +11,7 @@ namespace Mystiko.Net
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
@@ -32,6 +33,7 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpClientChannel));
 
         /// <summary>
@@ -77,6 +79,7 @@ namespace Mystiko.Net
                 var stream = this._client.GetStream();
                 while (!serverCancellationToken.IsCancellationRequested)
                 {
+                    Debug.Assert(stream != null, "stream != null");
                     var bytesRead = await stream.ReadAsync(this._rawInputBuffer, 0, 32767, serverCancellationToken);
 
                     // There might be more data, so store the data received so far.
@@ -84,7 +87,7 @@ namespace Mystiko.Net
 
                     // Not all data received OR no more but not yet ending with the delimiter. Get more.
                     var content = this._builder.ToString();
-                    if (bytesRead == BufferSize || !content.EndsWith("\r\n", StringComparison.Ordinal))
+                    if (bytesRead == BufferSize || content == null || !content.EndsWith("\r\n", StringComparison.Ordinal))
                     {
                         // Read some more.
                         continue;
@@ -126,7 +129,7 @@ namespace Mystiko.Net
                 throw new ArgumentNullException(nameof(message));
             }
 
-            this._client.Client.Send(message.ToPayload());
+            this._client.Client?.Send(message.ToPayload());
         }
     }
 }

@@ -10,13 +10,11 @@
 namespace Mystiko.Net
 {
     using System;
-    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
     using System.Net;
     using System.Net.Http;
     using System.Net.Sockets;
-    using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -32,6 +30,7 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NetUtility));
 
         [CanBeNull]
@@ -72,7 +71,7 @@ namespace Mystiko.Net
                         }
 
                         IPAddress publicIp;
-                        if (!IPAddress.TryParse(myIp.Trim().TrimEnd('\r', '\n'), out publicIp))
+                        if (!IPAddress.TryParse(myIp.Trim()?.TrimEnd('\r', '\n'), out publicIp))
                         {
                             Logger.Warn($"IP lookup source {source} returned a value that could not be parsed into an IP address: {myIp}");
                             continue;
