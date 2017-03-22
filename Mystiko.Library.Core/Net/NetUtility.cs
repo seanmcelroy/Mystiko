@@ -47,7 +47,7 @@ namespace Mystiko.Net
             if (publicIpAddress != null)
                 return publicIpAddress;
 
-            var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net", @"http://l2.io/ip", @"http://eth0.me", @"http://ifconfig.me/ip" };
+            var sources = new[] { @"https://icanhazip.com", @"http://checkip.amazonaws.com", @"http://ipecho.net/plain", @"http://l2.io/ip", @"http://eth0.me", @"http://ifconfig.me/ip" };
 
             var random = new Random(Environment.TickCount);
             foreach (var source in sources.OrderBy(x => random.Next(1000)))
@@ -59,6 +59,8 @@ namespace Mystiko.Net
 
                 using (var wc = new HttpClient())
                 {
+                    wc.Timeout = new TimeSpan(0, 0, 10); // 10 seconds
+
                     try
                     {
                         Logger.Debug($"Requesting IP address from remote source {source}");

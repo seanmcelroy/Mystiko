@@ -5,6 +5,7 @@ VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{36489263-D8F8-439D-BFA0-AE656A74AC44}"
 	ProjectSection(SolutionItems) = preProject
+		GOALS.md = GOALS.md
 		LICENSE.txt = LICENSE.txt
 		PROTOCOL.md = PROTOCOL.md
 		README.md = README.md
@@ -25,6 +26,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 		Documentation\Decryption.svg = Documentation\Decryption.svg
 		Documentation\Encryption.svg = Documentation\Encryption.svg
 		Documentation\Mystiko.vsdx = Documentation\Mystiko.vsdx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NetworkMessages", "NetworkMessages", "{BB1050F3-D7AF-42EC-8C24-8DD114572929}"
+	ProjectSection(SolutionItems) = preProject
+		Documentation\NetworkMessages\NodeHello.md = Documentation\NetworkMessages\NodeHello.md
 	EndProjectSection
 EndProject
 Global
@@ -59,5 +65,6 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{467E9EF8-6BA5-443C-9F9F-9B17F7BB35FB} = {36489263-D8F8-439D-BFA0-AE656A74AC44}
+		{BB1050F3-D7AF-42EC-8C24-8DD114572929} = {467E9EF8-6BA5-443C-9F9F-9B17F7BB35FB}
 	EndGlobalSection
 EndGlobal
