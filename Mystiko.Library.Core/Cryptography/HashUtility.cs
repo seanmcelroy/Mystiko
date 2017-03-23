@@ -35,6 +35,9 @@ namespace Mystiko.Cryptography
         [NotNull, ItemNotNull, Pure]
         public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async([NotNull] FileInfo source)
         {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+
             using (var fs = new FileStream(source.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 return await HashFileSHA512Async(fs);
@@ -48,6 +51,9 @@ namespace Mystiko.Cryptography
         [NotNull, ItemNotNull, Pure]
         public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async([NotNull] Stream source)
         {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+
             using (var sha = SHA512.Create())
             using (var bsSource = new BufferedStream(source, 1024 * 1024 * 16))
             {
@@ -76,6 +82,11 @@ namespace Mystiko.Cryptography
         [NotNull, Pure]
         public static byte[] HashForNonce(long nonce, [NotNull] byte[] preNonceArray)
         {
+            if (preNonceArray == null)
+                throw new ArgumentNullException(nameof(preNonceArray));
+            if (preNonceArray.Length == 0)
+                throw new ArgumentException("Value cannot be an empty collection.", nameof(preNonceArray));
+
             Array.Copy(BitConverter.GetBytes(nonce), 0, preNonceArray, preNonceArray.Length - 8, 8);
             return Hasher.ComputeHash(preNonceArray);
         }
@@ -96,6 +107,11 @@ namespace Mystiko.Cryptography
         [Pure]
         public static uint HashForZeroCount([NotNull] byte[] input, int zeroCount)
         {
+            if (input == null)
+                throw new ArgumentNullException(nameof(input));
+            if (input.Length == 0)
+                throw new ArgumentException("Value cannot be an empty collection.", nameof(input));
+
             var best = 0;
 
             for (var l = 0U; l < uint.MaxValue; l++)

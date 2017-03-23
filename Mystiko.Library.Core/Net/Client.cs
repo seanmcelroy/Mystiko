@@ -10,6 +10,7 @@
 namespace Mystiko.Net
 {
     using System;
+    using System.Diagnostics;
     using System.Linq;
     using System.Net.Sockets;
     using System.Text;
@@ -58,7 +59,8 @@ namespace Mystiko.Net
             this._receiveTask = new Task(async () =>
             {
                 var stream = this._client.GetStream();
-                while (!serverCancellationToken.IsCancellationRequested)
+                Debug.Assert(stream != null, "stream != null");
+                while (!serverCancellationToken.IsCancellationRequested && stream.CanRead)
                 {
                     var bytesRead = await stream.ReadAsync(this._rawInputBuffer, 0, 32767, serverCancellationToken);
 

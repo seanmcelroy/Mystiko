@@ -43,15 +43,17 @@ namespace Mystiko.Net
         [NotNull]
         private readonly TcpClient _client;
 
-        private Task _receiveTask;
+        [NotNull]
+        private readonly Task _receiveTask;
 
-        private Task _parseTask;
+        [NotNull]
+        private readonly Task _parseTask;
 
         [NotNull]
         private byte[] _buffer = new byte[0];
         [NotNull]
         private readonly object _bufferLock = new object();
-        private int readPosition = 0;
+        private int _readPosition;
         
         /// <summary>
         /// The message handlers for this channel
@@ -91,7 +93,7 @@ namespace Mystiko.Net
                 try
                 {
                     var stream = this._client.GetStream();
-                    while (!serverCancellationToken.IsCancellationRequested)
+                    while (!serverCancellationToken.IsCancellationRequested && stream.CanRead)
                     {
                         try
                         {
@@ -104,7 +106,7 @@ namespace Mystiko.Net
                             {
                                 lock (this._bufferLock)
                                 {
-                                    var rpos = this.readPosition;
+                                    var rpos = this._readPosition;
                                     var blen = this._buffer.Length;
                                     var newBuffer = new byte[blen + bytesRead - rpos];
                                     Buffer.BlockCopy(this._buffer, rpos, newBuffer, 0, blen - rpos);
@@ -112,20 +114,24 @@ namespace Mystiko.Net
                                     Debug.Assert(this._buffer.Length == 0 || newBuffer[0] == this._buffer[rpos]);
                                     Debug.Assert(newBuffer[newBuffer.Length - 1] == readBytes[bytesRead - 1]);
                                     this._buffer = newBuffer;
-                                    this.readPosition = 0;
+                                    this._readPosition = 0;
                                 }
                             }
-                            else if (this.readPosition == this._buffer.Length - 1)
+                            else if (this._readPosition == this._buffer.Length - 1)
                             {
                                 lock (this._bufferLock)
                                 {
-                                    if (this.readPosition == this._buffer.Length - 1)
+                                    if (this._readPosition == this._buffer.Length - 1)
                                     {
                                         this._buffer = new byte[0];
-                                        this.readPosition = 0;
+                                        this._readPosition = 0;
                                     }
                                 }
                             }
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            return;
                         }
                         catch (Exception ex)
                         {
@@ -147,7 +153,7 @@ namespace Mystiko.Net
                     // The minimum message is 24 bytes (header, message type, qwordcount, caboose)
                     MessageType messageType;
                     ulong qwordCount;
-                    if (this._buffer.Length - this.readPosition < 24)
+                    if (this._buffer.Length - this._readPosition < 24)
                     {
                         Thread.Sleep(1000);
                         continue;
@@ -157,8 +163,8 @@ namespace Mystiko.Net
                     {
                         // Find header
                         var potentialHeader = new byte[8];
-                        Buffer.BlockCopy(this._buffer, this.readPosition, potentialHeader, 0, 8);
-                        this.readPosition += 8;
+                        Buffer.BlockCopy(this._buffer, this._readPosition, potentialHeader, 0, 8);
+                        this._readPosition += 8;
                         if (!potentialHeader.SequenceEqual(MessageHeader))
                         {
                             Logger.Warn("{serverIdentity.GetCompositeHash().Substring(3, 8)}: Expected header, but magic value not found");
@@ -166,8 +172,8 @@ namespace Mystiko.Net
                         }
 
                         // Find message type
-                        var messageTypeByte = this._buffer[this.readPosition];
-                        this.readPosition++;
+                        var messageTypeByte = this._buffer[this._readPosition];
+                        this._readPosition++;
                         messageType = MessageType.Unknown;
                         if (!Enum.IsDefined(typeof(MessageType), messageTypeByte))
                         {
@@ -180,14 +186,14 @@ namespace Mystiko.Net
 
                         // Get message length
                         var qwordCountBytes = new byte[7];
-                        Buffer.BlockCopy(this._buffer, this.readPosition, qwordCountBytes, 0, 7);
-                        this.readPosition += 7;
+                        Buffer.BlockCopy(this._buffer, this._readPosition, qwordCountBytes, 0, 7);
+                        this._readPosition += 7;
                         qwordCount = BitConverter.ToUInt64(qwordCountBytes.Append((byte)0).ToArray(), 0);
                     }
 
                     // Do we have the complete message?
                     var payloadByteCount = qwordCount * 8;
-                    while (!serverCancellationToken.IsCancellationRequested && (ulong)(this._buffer.Length - this.readPosition + 1) < payloadByteCount)
+                    while (!serverCancellationToken.IsCancellationRequested && (ulong)(this._buffer.Length - this._readPosition + 1) < payloadByteCount)
                     {
                         // Nope, wait a bit.
                         Thread.Sleep(1000);
@@ -198,13 +204,13 @@ namespace Mystiko.Net
                     {
                         // Get payload
                         payloadBytes = new byte[qwordCount * 8];
-                        Buffer.BlockCopy(this._buffer, this.readPosition, payloadBytes, 0, payloadBytes.Length);
-                        this.readPosition += payloadBytes.Length;
+                        Buffer.BlockCopy(this._buffer, this._readPosition, payloadBytes, 0, payloadBytes.Length);
+                        this._readPosition += payloadBytes.Length;
 
                         // Find header
                         var potentialCaboose = new byte[8];
-                        Buffer.BlockCopy(this._buffer, this.readPosition, potentialCaboose, 0, 8);
-                        this.readPosition += 8;
+                        Buffer.BlockCopy(this._buffer, this._readPosition, potentialCaboose, 0, 8);
+                        this._readPosition += 8;
                         if (!potentialCaboose.SequenceEqual(MessageCaboose))
                         {
                             Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Expected caboose, but magic value not found");
@@ -212,13 +218,25 @@ namespace Mystiko.Net
                         }
                     }
 
-                    Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received complete message, Type {messageType}");
+                    Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received {messageType}");
 
                     IMessage message;
                     switch (messageType)
                     {
                         case MessageType.NodeHello:
                             message = new NodeHello();
+
+                            this.Send(new NodeDecline
+                                      {
+                                          DeclineReason = NodeDecline.NodeDeclineReasonCode.Unwilling,
+                                          Remediation = NodeDecline.NodeDeclineRemediationCode.Scram
+                                      });
+                            this._receiveTask.Wait(1);
+                            this._parseTask.Wait(1);
+                            this._client.Dispose();
+                            break;
+                        case MessageType.NodeDecline:
+                            message = new NodeDecline();
                             break;
                         default:
                             Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received unhandled message type {messageType}");

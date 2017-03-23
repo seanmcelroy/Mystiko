@@ -112,11 +112,13 @@ namespace Mystiko.Net
                 var tcpClient = await listener.AcceptTcpClientAsync();
                 Debug.Assert(tcpClient != null, "tcpClient != null");
                 var stream = tcpClient.GetStream();
+                Debug.Assert(stream != null, "stream != null");
+                Debug.Assert(stream.CanRead, "stream.CanRead == true");
                 using (var ctsRead = new CancellationTokenSource(5000))
                 {
                     var bytesRead = new byte[64 * 1024 * 1024];
                     var bytesReadLength = stream.ReadAsync(bytesRead, 0, bytesRead.Length, ctsRead.Token);
-                    
+                    throw new NotImplementedException();
                 }
             }
         }

@@ -196,6 +196,7 @@ namespace Mystiko.Net.Messages
                 bw.Write(this.PublicKeyX, 0, 32);
                 bw.Write(this.PublicKeyY, 0, 32);
                 bw.Write(this.Nonce.Value);
+                // ReSharper disable once AssignNullToNotNullAttribute
                 return ms.ToArray();
             }
         }

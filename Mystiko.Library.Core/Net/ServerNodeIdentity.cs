@@ -129,10 +129,14 @@ namespace Mystiko.Net
         [NotNull, Pure]
         public static Tuple<ServerNodeIdentity, byte[]> Generate(int targetDifficulty)
         {
+            if (targetDifficulty <= 0)
+                throw new ArgumentOutOfRangeException(nameof(targetDifficulty));
+
             Random insecureRandom;
             using (var rng = RandomNumberGenerator.Create())
             {
                 var randomBytes = new byte[4];
+                Debug.Assert(rng != null, "rng != null");
                 rng.GetBytes(randomBytes);
                 var seed = BitConverter.ToInt32(randomBytes, 0);
                 insecureRandom = new Random(seed);
@@ -184,6 +188,7 @@ namespace Mystiko.Net
                 identityBytes = ms.ToArray();
             }
 
+            Debug.Assert(identityBytes != null, "identityBytes != null");
             ret.Nonce = HashUtility.HashForZeroCount(identityBytes, targetDifficulty);
 
             return new Tuple<ServerNodeIdentity, byte[]>(ret, privD.ToByteArray());

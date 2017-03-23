@@ -25,6 +25,11 @@ namespace Mystiko.Net.Messages
         NodeHello = 1,
 
         /// <summary>
+        /// Indicates the message is a <see cref="NodeDecline"/>
+        /// </summary>
+        NodeDecline = 2,
+
+        /// <summary>
         /// Indicates the message is a <see cref="PeerAnnounce"/>
         /// </summary>
         PeerAnnounce = 111,
