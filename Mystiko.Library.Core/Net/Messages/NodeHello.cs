@@ -12,6 +12,7 @@ namespace Mystiko.Net.Messages
     using System;
     using System.Diagnostics;
     using System.IO;
+    using System.Linq;
 
     using JetBrains.Annotations;
 
@@ -26,7 +27,7 @@ namespace Mystiko.Net.Messages
         /// <summary>
         /// Gets or sets the date the node keys were created
         /// </summary>
-        public uint DateEpoch { get; set; }
+        public ulong DateEpoch { get; set; }
 
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
@@ -35,44 +36,10 @@ namespace Mystiko.Net.Messages
         public byte[] PublicKeyX { get; set; }
 
         /// <summary>
-        /// Gets or sets the base-64 encoded value of the public key X-value for this identity
-        /// </summary>
-        [NotNull]
-        public string PublicKeyXBase64
-        {
-            get
-            {
-                return Convert.ToBase64String(this.PublicKeyX);
-            }
-
-            set
-            {
-                this.PublicKeyX = Convert.FromBase64String(value);
-            }
-        }
-
-        /// <summary>
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
         public byte[] PublicKeyY { get; set; }
-
-        /// <summary>
-        /// Gets or sets the base-64 encoded value of the public key Y-value for this identity
-        /// </summary>
-        [NotNull]
-        public string PublicKeyYBase64
-        {
-            get
-            {
-                return Convert.ToBase64String(this.PublicKeyY);
-            }
-
-            set
-            {
-                this.PublicKeyY = Convert.FromBase64String(value);
-            }
-        }
 
         /// <summary>
         /// Gets or sets the nonce applied to the epoch and public keys of the node, proving
@@ -81,22 +48,65 @@ namespace Mystiko.Net.Messages
         public ulong Nonce { get; set; }
 
         /// <inheritdoc />
-        public byte[] ToPayload()
+        public byte[] ToMessage()
         {
+            Debug.Assert(this.PublicKeyX != null);
+            Debug.Assert(this.PublicKeyX.Length == 32);
+            Debug.Assert(this.PublicKeyY != null);
+            Debug.Assert(this.PublicKeyY.Length == 32);
+
             using (var ms = new MemoryStream())
             using (var bw = new BinaryWriter(ms))
             {
-                bw.Write((byte)this.MessageType);
-                bw.Write(this.DateEpoch);
-                bw.Write(this.PublicKeyXBase64);
-                bw.Write(this.PublicKeyYBase64);
-                bw.Write(this.Nonce);
-
+                bw.Write(new byte[] { 0x4D, 0x59, 0x53, 0x54, 0x49, 0x4B, 0x4F, 0x0A }); // Header
+                bw.Write(new byte[] { (byte)this.MessageType, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }); // Message type, length (11 more QWORDs)
+                bw.Write(this.DateEpoch); // 1 QWORD
+                bw.Write(this.PublicKeyX); // 3 QWORD's
+                bw.Write(this.PublicKeyY); // 3 QWORD's
+                bw.Write(this.Nonce); // 1 QWORD
+                bw.Write(Server.PROTOCOL_VERSION);
+                bw.Write(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+                bw.Write(new byte[] { 0x0C, 0xAB, 0x00, 0x5E, 0xFF, 0xFF, 0xFF, 0xFF }); // Caboose
                 return ms.ToArray();
             }
         }
 
         /// <inheritdoc />
+        public void FromMessage(byte[] messageBytes)
+        {
+            if (messageBytes == null)
+            {
+                throw new ArgumentNullException(nameof(messageBytes));
+            }
+
+            if (messageBytes.Length < 1)
+            {
+                throw new ArgumentException("Payload less than one byte in length", nameof(messageBytes));
+            }
+
+            using (var ms = new MemoryStream(messageBytes))
+            using (var br = new BinaryReader(ms))
+            {
+                var header = br.ReadUInt64();
+                Debug.Assert(header == 5573577635319729930);
+
+                var messageType = br.ReadByte();
+                Debug.Assert(MessageType.NodeHello.Equals(messageType), "Message is parsed as wrong type");
+
+                var qWords = BitConverter.ToUInt64(br.ReadBytes(7).Append((byte)0).ToArray(), 0);
+                Debug.Assert(qWords == 11);
+
+                var payload = new byte[8 * qWords];
+                Buffer.BlockCopy(messageBytes, (int)ms.Position, payload, 0, payload.Length);
+                ms.Seek(payload.Length, SeekOrigin.Current);
+
+                this.FromPayload(payload);
+
+                var caboose = br.ReadUInt64();
+                Debug.Assert(caboose == 912823757494550527);
+            }
+        }
+
         public void FromPayload(byte[] payload)
         {
             if (payload == null)
@@ -106,18 +116,25 @@ namespace Mystiko.Net.Messages
 
             if (payload.Length < 1)
             {
-                throw new ArgumentException("Payload less than one byte in length", nameof(payload));
+                throw new ArgumentException("Payload body less than one byte in length", nameof(payload));
             }
 
             using (var ms = new MemoryStream(payload))
             using (var br = new BinaryReader(ms))
             {
-                var messageType = br.ReadByte();
-                Debug.Assert(MessageType.NodeHello.Equals(messageType), "Message is parsed as wrong type");
-                this.DateEpoch = br.ReadUInt32();
-                this.PublicKeyXBase64 = br.ReadString();
-                this.PublicKeyYBase64 = br.ReadString();
+                this.DateEpoch = br.ReadUInt64();
+
+                this.PublicKeyX = br.ReadBytes(32);
+
+                this.PublicKeyY = br.ReadBytes(32);
+
                 this.Nonce = br.ReadUInt64();
+
+                var version = br.ReadUInt16();
+                Debug.Assert(version == Server.PROTOCOL_VERSION);
+
+                var zeroPadding = br.ReadBytes(6);
+                Debug.Assert(BitConverter.ToUInt64(zeroPadding.Append((byte)0).Append((byte)0).ToArray(), 0) == 0);
             }
         }
     }

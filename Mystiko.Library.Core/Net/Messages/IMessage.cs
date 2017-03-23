@@ -22,14 +22,20 @@ namespace Mystiko.Net.Messages
         MessageType MessageType { get; }
 
         /// <summary>
-        /// Converts the record to a block chain payload
+        /// Converts the record to a framed message
         /// </summary>
         /// <returns>A serialized string representation of the record</returns>
         [Pure, NotNull]
-        byte[] ToPayload();
+        byte[] ToMessage();
 
         /// <summary>
-        /// Hydrates the record from a block chain payload
+        /// Hydrates the record from a message, including its framing
+        /// </summary>
+        /// <param name="messageBytes">The serialized framed payload of the record</param>
+        void FromMessage([NotNull] byte[] messageBytes);
+
+        /// <summary>
+        /// Hydrates the record from the payload of a message
         /// </summary>
         /// <param name="payload">The serialized payload of the record</param>
         void FromPayload([NotNull] byte[] payload);

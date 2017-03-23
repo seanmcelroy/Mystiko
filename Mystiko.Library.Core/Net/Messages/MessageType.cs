@@ -15,18 +15,23 @@ namespace Mystiko.Net.Messages
     public enum MessageType : byte
     {
         /// <summary>
-        /// Indicates the message is a <see cref="PeerAnnounce"/>
+        /// An unknown message type
         /// </summary>
-        PeerAnnounce = 1,
-
-        /// <summary>
-        /// Indicates the message is a <see cref="NodeAnnounce"/>
-        /// </summary>
-        NodeAnnounce = 100,
+        Unknown = 0,
 
         /// <summary>
         /// Indicates the message is a <see cref="NodeHello"/>
         /// </summary>
-        NodeHello = 101,
+        NodeHello = 1,
+
+        /// <summary>
+        /// Indicates the message is a <see cref="PeerAnnounce"/>
+        /// </summary>
+        PeerAnnounce = 111,
+
+        /// <summary>
+        /// Indicates the message is a <see cref="NodeAnnounce"/>
+        /// </summary>
+        NodeAnnounce = 100
     }
 }

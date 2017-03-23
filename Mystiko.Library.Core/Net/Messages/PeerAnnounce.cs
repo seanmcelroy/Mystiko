@@ -153,7 +153,7 @@ namespace Mystiko.Net.Messages
         public ulong? Nonce { get; set; }
 
         /// <inheritdoc />
-        public byte[] ToPayload()
+        public byte[] ToMessage()
         {
             if (!this.PeerNetworkingProtocolVersion.HasValue || this.PeerNetworkingProtocolVersion < 1)
             {
@@ -201,19 +201,19 @@ namespace Mystiko.Net.Messages
         }
 
         /// <inheritdoc />
-        public void FromPayload(byte[] payload)
+        public void FromMessage(byte[] messageBytes)
         {
-            if (payload == null)
+            if (messageBytes == null)
             {
-                throw new ArgumentNullException(nameof(payload));
+                throw new ArgumentNullException(nameof(messageBytes));
             }
 
-            if (payload.Length < 1)
+            if (messageBytes.Length < 1)
             {
-                throw new ArgumentException("Payload less than one byte in length", nameof(payload));
+                throw new ArgumentException("Payload less than one byte in length", nameof(messageBytes));
             }
 
-            using (var ms = new MemoryStream(payload))
+            using (var ms = new MemoryStream(messageBytes))
             using (var br = new BinaryReader(ms))
             {
                 var messageType = br.ReadByte();
@@ -226,6 +226,13 @@ namespace Mystiko.Net.Messages
                 this.PublicKeyY = br.ReadBytes(32);
                 this.Nonce = br.ReadUInt64();
             }
+        }
+
+        /// <inheritdoc />
+        public void FromPayload(byte[] payload)
+        {
+            // TODO
+            throw new NotImplementedException();
         }
     }
 }

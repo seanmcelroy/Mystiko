@@ -36,7 +36,7 @@ namespace Mystiko.Library.Tests.Net.Messages
                 new byte[32],
                 0);
 
-            var ret = na.ToPayload();
+            var ret = na.ToMessage();
             Assert.NotNull(ret);
         }
 
@@ -55,7 +55,7 @@ namespace Mystiko.Library.Tests.Net.Messages
                 new byte[32],
                 0);
 
-            var ret = pa.ToPayload();
+            var ret = pa.ToMessage();
             Assert.NotNull(ret);
 
             var rebuilt = new PeerAnnounce(ret);

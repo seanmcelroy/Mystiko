@@ -11,7 +11,6 @@ namespace Mystiko.Net
 {
     using System;
     using System.Diagnostics;
-    using System.IO;
     using System.Net;
     using System.Net.Sockets;
     using System.Security.Cryptography;
@@ -24,13 +23,13 @@ namespace Mystiko.Net
 
     using Mystiko.Database.Records;
 
-    using Newtonsoft.Json;
-
     /// <summary>
     /// A server capable of listening for <see cref="Client"/> connections from other nodes in the network
     /// </summary>
     public class Server : IDisposable
     {
+        public const ushort PROTOCOL_VERSION = 1;
+
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>

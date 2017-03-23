@@ -414,7 +414,7 @@ namespace Mystiko.Net
             var result = HashUtility.ValidateIdentity(announcement.DateEpoch.Value, announcement.PublicKeyX, announcement.PublicKeyY, announcement.Nonce.Value, difficultyTarget);
             if (!result.DifficultyValidated)
             {
-                Logger.Warn($"Unverifiable hash in announcement from {remoteEndpoint.Address}");
+                Logger.Warn($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Unverifiable hash in announcement from {remoteEndpoint.Address}");
                 return;
             }
 
@@ -423,7 +423,7 @@ namespace Mystiko.Net
             {
                 if (!this.DisableLogging)
                 {
-                    Logger.Debug($"Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
+                    Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
                 }
 
                 // FOR LOCAL TESTING ONLY
@@ -467,7 +467,7 @@ namespace Mystiko.Net
             }
 
             var endpoint = new IPEndPoint(this._multicastGroupAddress, this._multicastReceivePort);
-            var payloadBytes = message.ToPayload();
+            var payloadBytes = message.ToMessage();
             if (payloadBytes.Length > 65507)
             {
                 throw new InvalidOperationException("Payload is too large; would have caused UDP packet to fragment");
@@ -475,7 +475,7 @@ namespace Mystiko.Net
 
             if (payloadBytes.Length > 8192)
             {
-                Logger.Warn($"Sending a large packet across peer channel ({payloadBytes.Length} bytes); may be lost in transmission");
+                Logger.Warn($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending a large packet across peer channel ({payloadBytes.Length} bytes); may be lost in transmission");
             }
 
             /* Wire format is:

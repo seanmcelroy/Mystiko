@@ -10,6 +10,7 @@
 namespace Mystiko.Net
 {
     using System;
+    using System.Net;
 
     using JetBrains.Annotations;
 
@@ -20,6 +21,11 @@ namespace Mystiko.Net
     /// </summary>
     public interface IClientChannel
     {
+        /// <summary>
+        /// Gets the remote endpoint for this client channel
+        /// </summary>
+        IPEndPoint RemoteEndpoint { get; }
+
         /// <summary>
         /// Registers a handler for the client channel
         /// </summary>
