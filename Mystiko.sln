@@ -30,6 +30,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentat
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NetworkMessages", "NetworkMessages", "{BB1050F3-D7AF-42EC-8C24-8DD114572929}"
 	ProjectSection(SolutionItems) = preProject
+		Documentation\NetworkMessages\BlockHave.md = Documentation\NetworkMessages\BlockHave.md
 		Documentation\NetworkMessages\NodeDecline.md = Documentation\NetworkMessages\NodeDecline.md
 		Documentation\NetworkMessages\NodeHello.md = Documentation\NetworkMessages\NodeHello.md
 	EndProjectSection
