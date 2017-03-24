@@ -37,23 +37,13 @@ BYTES
 [009-015] -  7 bytes - Number of QWORD's following this field until end of message
 [016-047] - 32 bytes - First 32 bytes of the 64-byte SHA512 hash of the block
 [048-055] -  8 bytes - Maximum size of the block
-[056-063] -  8 bytes - Timestamp for interchange
-[064-071] -  8 bytes - Message end (HEX for 0C AB 00 5E FF FF FF FF - caboose)
+[056-063] -  8 bytes - Message end (HEX for 0C AB 00 5E FF FF FF FF - caboose)
 ```
 
 *Maximum size of the block* is an inexact size of the block.  This permits a
 respondant to determine whether it as capacity to receive the block based on its
 rules for accepting new blocks.  To prevent pre-exchange identification of which
 block this represents, the actual size of the block is this value or less.
-
-*Timestamp for interchange* is used as an inexact time in seconds since the epoch
-that this BlockHave request was formed.  This timestamp is used to identify
-the interchange of messages as part of the conversation from BlockHave through
-BlockCommit, and is included in the signed values for the countersigned ticket
-that can be created as a result of this interchange to prove both nodes traded
-a specific block.  Because the network must not accept future-dated timestamps
-and should only accept timestamps up to a certain expiry age, this value need
-not be the exact time, or even close to it.  It should be between
 
 ```
 Now()-ExpiryPeriod/RandBetween(2,10) and Now()
@@ -69,13 +59,12 @@ BlockCredit message.
 
 ```
 4D 59 53 54 49 4B 4F 0A - Message start (ASCII for MYSTIKO\r)
-03 06 00 00 00 00 00 00 - Message type code, then number of QWORD's following (6 = 0x06)
+03 05 00 00 00 00 00 00 - Message type code, then number of QWORD's following (5 = 0x05)
 33 33 33 33 33 33 33 33 - First 32 bytes of the 64-byte SHA512 hash of the block
 33 33 33 33 33 33 33 33
 33 33 33 33 33 33 33 33
 33 33 33 33 33 33 33 33
 FF FF FF FF FF FF FF FF - Maximum size of the block
-AA AA AA AA AA AA AA AA - Timestamp for interchange
 0C AB 00 5E FF FF FF FF - Message end (the 'caboose')
 ```
 
@@ -85,7 +74,7 @@ Respondant nodes will respond with either no reply or:
 * NodeWant
 
 Respondant nodes may chose to delay their reponse with a NodeWant to confound
-traffic analysis efforts from carrier advesaries
+traffic analysis efforts from carrier advesaries.
 
 ## See also
 
