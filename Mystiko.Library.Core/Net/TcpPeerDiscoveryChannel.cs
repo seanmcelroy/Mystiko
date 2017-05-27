@@ -15,6 +15,7 @@ namespace Mystiko.Net
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
+    using System.Security.Cryptography;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -93,6 +94,12 @@ namespace Mystiko.Net
         /// A value indicating whether this object has been disposed
         /// </summary>
         private bool _disposed;
+
+        /// <summary>
+        /// A value indicating how many seconds since a message was last observed from any other client.
+        /// This is used to set exponential backoff for broadcasting my identity
+        /// </summary>
+        private int _exponentialBackOffTick = 1;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TcpPeerDiscoveryChannel"/> class. 
@@ -248,7 +255,8 @@ namespace Mystiko.Net
                                             try
                                             {
                                                 var peerAnnounce = new PeerAnnounce(nextMessageBytes);
-                                                this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce);
+                                                if (this.HandlePeerAnnouncement(udpReceiveResult.RemoteEndPoint, peerAnnounce))
+                                                    this._exponentialBackOffTick = 1;
                                             }
                                             catch (Exception ex)
                                             {
@@ -285,28 +293,26 @@ namespace Mystiko.Net
 
             this._multicastBroadcastTask = new Task(async () =>
             {
-                while (!cancellationToken.IsCancellationRequested)
+                using (var rng = RandomNumberGenerator.Create())
                 {
-                    Debug.Assert(this.PublicIPAddress != null, "this.PublicIPAddress != null");
-                    Debug.Assert(this.PublicPort != null, "this.PublicPort != null");
-                    Debug.Assert(this.PublicPort > 0, "this.PublicPort > 0");
-
-                    if (!this.DisableLogging)
+                    Debug.Assert(rng != null, "rng != null");
+                    while (!cancellationToken.IsCancellationRequested)
                     {
-                        Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
+                        Debug.Assert(this.PublicIPAddress != null, "this.PublicIPAddress != null");
+                        Debug.Assert(this.PublicPort != null, "this.PublicPort != null");
+                        Debug.Assert(this.PublicPort > 0, "this.PublicPort > 0");
+
+                        if (!this.DisableLogging)
+                        {
+                            Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
+                        }
+
+                        await this.SendAsync(new PeerAnnounce(1, this.PublicIPAddress, this.PublicPort.Value, this._serverIdentity.DateEpoch, this._serverIdentity.PublicKeyX, this._serverIdentity.PublicKeyY, this._serverIdentity.Nonce));
+
+                        this._exponentialBackOffTick++;
+                        Thread.Sleep(500 * rng.GetNext(10, this._exponentialBackOffTick + 10)); // At most once every 5 seconds
+
                     }
-
-                    await this.SendAsync(
-                        new PeerAnnounce(
-                            1,
-                            this.PublicIPAddress,
-                            this.PublicPort.Value,
-                            this._serverIdentity.DateEpoch,
-                            this._serverIdentity.PublicKeyX,
-                            this._serverIdentity.PublicKeyY,
-                            this._serverIdentity.Nonce));
-
-                    Thread.Sleep(3 * 1000);
                 }
             });
 
@@ -365,7 +371,8 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="remoteEndpoint">The remote endpoint that sent the message</param>
         /// <param name="announcement">The message to handle</param>
-        private void HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
+        /// <returns>A value indicating whether a new peer was actually discovered</returns>
+        private bool HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
         {
             if (remoteEndpoint == null)
             {
@@ -406,7 +413,7 @@ namespace Mystiko.Net
             if (this._serverIdentity.DateEpoch == announcement.DateEpoch && this._serverIdentity.PublicKeyX.SequenceEqual(announcement.PublicKeyX) && this._serverIdentity.PublicKeyY.SequenceEqual(announcement.PublicKeyY) && this._serverIdentity.Nonce == announcement.Nonce)
             {
                 // Message from myself
-                return;
+                return false;
             }
 
             // Validate the presented identity hashes out
@@ -415,42 +422,44 @@ namespace Mystiko.Net
             if (!result.DifficultyValidated)
             {
                 Logger.Warn($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Unverifiable hash in announcement from {remoteEndpoint.Address}");
-                return;
+                return false;
             }
 
             Debug.Assert(result.CompositeHash != null, "result.CompositeHash != null");
-            if (!this.DiscoveredPeers.ContainsKey(result.CompositeHash))
+            if (this.DiscoveredPeers.ContainsKey(result.CompositeHash))
             {
-                if (!this.DisableLogging)
-                {
-                    Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
-                }
-
-                // FOR LOCAL TESTING ONLY
-                var remoteAddress = announcement.PublicIPAddress;
-                if (announcement.PublicIPAddress.Equals(this.PublicIPAddress))
-                {
-                    remoteAddress = IPAddress.Loopback;
-                }
-
-                var discoveredPeer = new DiscoveredPeer(
-                    new ServerNodeIdentity
-                    {
-                        DateEpoch = announcement.DateEpoch.Value,
-                        PublicKeyX = announcement.PublicKeyX,
-                        PublicKeyY = announcement.PublicKeyY,
-                        Nonce = announcement.Nonce.Value
-                    }, 
-                    new IPEndPoint(remoteAddress, announcement.PublicPort));
-
-                this.DiscoveredPeers.Add(result.CompositeHash, discoveredPeer);
-
-                foreach (var handler in this.DiscoveredPeerHandlers)
-                {
-                    Debug.Assert(handler != null, "handler != null");
-                    handler(discoveredPeer);
-                }
+                return false;
             }
+
+            if (!this.DisableLogging)
+            {
+                Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Peer announcement received from: {announcement.PublicIPAddress}(#...{result.CompositeHash.Substring(difficultyTarget, 8)})");
+            }
+
+            // FOR LOCAL TESTING ONLY
+            var remoteAddress = announcement.PublicIPAddress;
+            if (announcement.PublicIPAddress.Equals(this.PublicIPAddress))
+            {
+                remoteAddress = IPAddress.Loopback;
+            }
+
+            var discoveredPeer = new DiscoveredPeer(new ServerNodeIdentity
+                                                    {
+                                                        DateEpoch = announcement.DateEpoch.Value,
+                                                        PublicKeyX = announcement.PublicKeyX,
+                                                        PublicKeyY = announcement.PublicKeyY,
+                                                        Nonce = announcement.Nonce.Value
+                                                    }, new IPEndPoint(remoteAddress, announcement.PublicPort));
+
+            this.DiscoveredPeers.Add(result.CompositeHash, discoveredPeer);
+
+            foreach (var handler in this.DiscoveredPeerHandlers)
+            {
+                Debug.Assert(handler != null, "handler != null");
+                handler(discoveredPeer);
+            }
+
+            return true;
         }
 
         /// <summary>

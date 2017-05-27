@@ -62,7 +62,7 @@ namespace Mystiko.Net
         private readonly List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
 
         /// <inheritdoc />
-        public IPEndPoint RemoteEndpoint => (IPEndPoint)this._client.Client.RemoteEndPoint;
+        public IPEndPoint RemoteEndpoint => this._client.Connected ? (IPEndPoint)this._client.Client?.RemoteEndPoint : null;
 
         /// <summary>
         /// Creates a new client channel
