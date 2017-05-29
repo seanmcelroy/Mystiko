@@ -17,6 +17,8 @@ namespace Mystiko.Cryptography
 
     using JetBrains.Annotations;
 
+    using Mystiko.Net;
+
     /// <summary>
     /// Convenience utilities for hashing data
     /// </summary>
@@ -164,8 +166,8 @@ namespace Mystiko.Cryptography
         /// <param name="nonce">The nonce value that when applied the nonce value that when applied </param>
         /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
         /// <returns>A value indicating whether or not the <see cref="nonce"/> value has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
-        [NotNull]
-        public static ValidateIdentityResult ValidateIdentity(uint dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, int targetDifficulty)
+        [NotNull, Pure]
+        public static ValidateIdentityResult ValidateIdentity(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, byte targetDifficulty)
         {
             byte[] identityBytes;
             using (var ms = new MemoryStream())
@@ -184,7 +186,7 @@ namespace Mystiko.Cryptography
                 var candidateHash = sha.ComputeHash(identityBytes);
                 var candidateHashString = BitConverter.ToString(candidateHash).Replace("-", string.Empty);
 
-                var i = 0;
+                byte i = 0;
                 foreach (var c in candidateHashString)
                 {
                     if (c == '0')
@@ -192,7 +194,7 @@ namespace Mystiko.Cryptography
                         i++;
                         if (i == targetDifficulty)
                         {
-                            return new ValidateIdentityResult(true, candidateHashString);
+                            return new ValidateIdentityResult(true, i, candidateHashString);
                         }
                     }
                     else
@@ -202,7 +204,21 @@ namespace Mystiko.Cryptography
                 }
             }
 
-            return new ValidateIdentityResult(false, null);
+            return new ValidateIdentityResult(false, targetDifficulty, null);
+        }
+
+        /// <summary>
+        /// Validates the nonce of the identity matches the <paramref name="targetDifficulty"/> number of leading zeros required
+        /// </summary>
+        /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
+        /// <returns>A value indicating whether or not the <see cref="ServerNodeIdentity.Nonce"/> on the <paramref name="serverNodeIdentity"/> object has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
+        [NotNull, Pure]
+        public static ValidateIdentityResult ValidateIdentity([NotNull] ServerNodeIdentity serverNodeIdentity, byte targetDifficulty)
+        {
+            if (serverNodeIdentity == null)
+                throw new ArgumentNullException(nameof(serverNodeIdentity));
+
+            return ValidateIdentity(serverNodeIdentity.DateEpoch, serverNodeIdentity.PublicKeyX, serverNodeIdentity.PublicKeyY, serverNodeIdentity.Nonce, targetDifficulty);
         }
     }
 }

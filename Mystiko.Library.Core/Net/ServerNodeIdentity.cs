@@ -30,90 +30,66 @@ namespace Mystiko.Net
     /// </summary>
     public class ServerNodeIdentity
     {
-        private byte[] _publicKeyX;
-
-        private byte[] _publicKeyY;
-
         /// <summary>
         /// Gets or sets the date the node keys were created
         /// </summary>
-        public uint DateEpoch { get; set; }
+        public ulong DateEpoch { get; }
 
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
         [NotNull]
-        public byte[] PublicKeyX
-        {
-            get
-            {
-                return this._publicKeyX;
-            }
-            set
-            {
-                Debug.Assert(value != null, "value != null");
-                Debug.Assert(value.Length == 32, "value.Length == 32");
-                this._publicKeyX = value;
-            }
-        }
+        public byte[] PublicKeyX { get; }
 
         /// <summary>
         /// Gets or sets the base-64 encoded value of the public key X-value for this identity
         /// </summary>
         [NotNull]
-        public string PublicKeyXBase64
-        {
-            get
-            {
-                return Convert.ToBase64String(this.PublicKeyX);
-            }
-
-            set
-            {
-                this.PublicKeyX = Convert.FromBase64String(value);
-            }
-        }
+        public string PublicKeyXBase64 => Convert.ToBase64String(this.PublicKeyX);
 
         /// <summary>
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
-        public byte[] PublicKeyY
-        {
-            get
-            {
-                return this._publicKeyY;
-            }
-            set
-            {
-                Debug.Assert(value != null, "value != null");
-                Debug.Assert(value.Length == 32, "value.Length == 32");
-                this._publicKeyY = value;
-            }
-        }
+        public byte[] PublicKeyY { get; }
 
         /// <summary>
         /// Gets or sets the base-64 encoded value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
-        public string PublicKeyYBase64
-        {
-            get
-            {
-                return Convert.ToBase64String(this.PublicKeyY);
-            }
-
-            set
-            {
-                this.PublicKeyY = Convert.FromBase64String(value);
-            }
-        }
+        public string PublicKeyYBase64 => Convert.ToBase64String(this.PublicKeyY);
 
         /// <summary>
         /// Gets or sets the nonce applied to the epoch and public keys of the node, proving
         /// as a proof of work
         /// </summary>
-        public ulong Nonce { get; set; }
+        public ulong Nonce { get; }
+
+        public ServerNodeIdentity(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce)
+        {
+            if (dateEpoch < Convert.ToUInt64((new DateTime(2017, 05, 01, 0, 0, 0, DateTimeKind.Utc) - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds))
+                throw new ArgumentOutOfRangeException(nameof(dateEpoch), "Date epoch cannot be before 2017-05-01");
+
+            if (dateEpoch > Convert.ToUInt64((DateTime.UtcNow.AddMinutes(10) - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds))
+                throw new ArgumentOutOfRangeException(nameof(dateEpoch), "Date epoch cannot be in the future");
+
+            if (publicKeyX == null)
+                throw new ArgumentNullException(nameof(publicKeyX));
+
+            if (publicKeyX.Length != 32)
+                throw new ArgumentException("Public key X is not exactly 32 bytes long", nameof(publicKeyX));
+
+            if (publicKeyY == null)
+                throw new ArgumentNullException(nameof(publicKeyY));
+
+            if (publicKeyY.Length != 32)
+                throw new ArgumentException("Public key Y is not exactly 32 bytes long", nameof(publicKeyY));
+
+            this.DateEpoch = dateEpoch;
+            this.PublicKeyX = publicKeyX;
+            this.PublicKeyY = publicKeyY;
+            this.Nonce = nonce;
+        }
 
         /// <summary>
         /// Generates a new <see cref="ServerNodeIdentity"/> record and its private key
@@ -127,7 +103,7 @@ namespace Mystiko.Net
         /// </remarks>
         // ReSharper disable once StyleCop.SA1650
         [NotNull, Pure]
-        public static Tuple<ServerNodeIdentity, byte[]> Generate(int targetDifficulty)
+        public static Tuple<ServerNodeIdentity, byte[]> Generate(byte targetDifficulty)
         {
             if (targetDifficulty <= 0)
                 throw new ArgumentOutOfRangeException(nameof(targetDifficulty));
@@ -142,10 +118,7 @@ namespace Mystiko.Net
                 insecureRandom = new Random(seed);
             }
 
-            var ret = new ServerNodeIdentity
-            {
-                DateEpoch = Convert.ToUInt32((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - insecureRandom.Next(0, 3600))
-            };
+            var dateEpoch = Convert.ToUInt64((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - insecureRandom.Next(0, 3600));
 
             // Elliptic Curve
             // ReSharper disable once StringLiteralTypo
@@ -172,26 +145,31 @@ namespace Mystiko.Net
             var qa = ec.G.Multiply(privD);
             Debug.Assert(qa != null, "qa != null");
             Debug.Assert(qa.Normalize().XCoord != null, "qa.X != null");
-            ret.PublicKeyX = qa.Normalize().XCoord.ToBigInteger().ToByteArrayUnsigned();
+            var publicKeyX = qa.Normalize().XCoord.ToBigInteger().ToByteArrayUnsigned();
+            if (publicKeyX == null || publicKeyX.Length != 32)
+                throw new InvalidOperationException("Failure to create 32-byte public key X");
+
             Debug.Assert(qa.Normalize().YCoord != null, "qa.Y != null");
-            ret.PublicKeyY = qa.Normalize().YCoord.ToBigInteger().ToByteArrayUnsigned();
+            var publicKeyY = qa.Normalize().YCoord.ToBigInteger().ToByteArrayUnsigned();
+            if (publicKeyY == null || publicKeyY.Length != 32)
+                throw new InvalidOperationException("Failure to create 32-byte public key Y");
 
             // Calculate nonce for public key
             byte[] identityBytes;
             using (var ms = new MemoryStream())
             using (var bw = new BinaryWriter(ms))
             {
-                bw.Write(ret.DateEpoch);
-                bw.Write(ret.PublicKeyX);
-                bw.Write(ret.PublicKeyY);
+                bw.Write(dateEpoch);
+                bw.Write(publicKeyX);
+                bw.Write(publicKeyY);
                 bw.Write(0L); // Placeholder 8 bytes
                 identityBytes = ms.ToArray();
             }
 
             Debug.Assert(identityBytes != null, "identityBytes != null");
-            ret.Nonce = HashUtility.HashForZeroCount(identityBytes, targetDifficulty);
+            var nonce = HashUtility.HashForZeroCount(identityBytes, targetDifficulty);
 
-            return new Tuple<ServerNodeIdentity, byte[]>(ret, privD.ToByteArray());
+            return new Tuple<ServerNodeIdentity, byte[]>(new ServerNodeIdentity(dateEpoch, publicKeyX, publicKeyY, nonce), privD.ToByteArray());
         }
 
         /// <summary>
@@ -199,9 +177,14 @@ namespace Mystiko.Net
         /// </summary>
         /// <returns>The composite hash of the components of this identity</returns>
         [NotNull, Pure]
-        public string GetCompositeHash()
+        public string GetCompositeHash(byte targetDifficulty = 1)
         {
-            return HashUtility.ValidateIdentity(this.DateEpoch, this.PublicKeyX, this.PublicKeyY, this.Nonce, 1).CompositeHash;
+            var validatedIdentity = HashUtility.ValidateIdentity(this, targetDifficulty);
+            if (!validatedIdentity.DifficultyValidated)
+                throw new InvalidOperationException("This is not a valid identity");
+
+            Debug.Assert(validatedIdentity.CompositeHash != null, "validatedIdentity.CompositeHash != null");
+            return validatedIdentity.CompositeHash;
         }
     }
 }

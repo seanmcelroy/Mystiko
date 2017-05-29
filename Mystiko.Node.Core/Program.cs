@@ -60,8 +60,10 @@ namespace Mystiko.Node
                     {
                         var fi = new FileInfo(@"C:\Users\smcelroy\Downloads\Git-2.11.0-64-bit.exe");
                         if (fi.Exists)
+                        {
                             await node1.InsertFileAsync(fi);
-                        }, cts.Token);
+                        }
+                    }, cts.Token);
 
                 Console.WriteLine("Press ENTER to terminate all nodes");
                 Console.ReadLine();

@@ -272,6 +272,13 @@ namespace Mystiko.Net
                         }
                     }
                 }
+                catch (ObjectDisposedException)
+                {
+                    lock (this._multicastReceiveQueueLock)
+                    {
+                        this._multicastReceiveQueue.Clear();
+                    }
+                }
                 catch (TaskCanceledException)
                 {
                     lock (this._multicastReceiveQueueLock)
@@ -417,7 +424,7 @@ namespace Mystiko.Net
             }
 
             // Validate the presented identity hashes out
-            var difficultyTarget = 3;
+            byte difficultyTarget = 3;
             var result = HashUtility.ValidateIdentity(announcement.DateEpoch.Value, announcement.PublicKeyX, announcement.PublicKeyY, announcement.Nonce.Value, difficultyTarget);
             if (!result.DifficultyValidated)
             {
@@ -443,13 +450,12 @@ namespace Mystiko.Net
                 remoteAddress = IPAddress.Loopback;
             }
 
-            var discoveredPeer = new DiscoveredPeer(new ServerNodeIdentity
-                                                    {
-                                                        DateEpoch = announcement.DateEpoch.Value,
-                                                        PublicKeyX = announcement.PublicKeyX,
-                                                        PublicKeyY = announcement.PublicKeyY,
-                                                        Nonce = announcement.Nonce.Value
-                                                    }, new IPEndPoint(remoteAddress, announcement.PublicPort));
+            var discoveredPeer = new DiscoveredPeer(new ServerNodeIdentity(
+                announcement.DateEpoch.Value,
+                announcement.PublicKeyX,
+                announcement.PublicKeyY,
+                announcement.Nonce.Value),
+                new IPEndPoint(remoteAddress, announcement.PublicPort));
 
             this.DiscoveredPeers.Add(result.CompositeHash, discoveredPeer);
 

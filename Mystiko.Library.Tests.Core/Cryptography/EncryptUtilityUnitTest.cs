@@ -9,6 +9,8 @@
 
 namespace Mystiko.Library.Tests.Cryptography
 {
+    using System;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Security.Cryptography;
@@ -72,18 +74,19 @@ namespace Mystiko.Library.Tests.Cryptography
         public async Task EncryptDecryptViaStreams()
         {
             // Setup
+            var fakeKey = new byte[32];
+            var fakeString = Convert.FromBase64String("asdf");
+            Debug.Assert(fakeString != null, "fakeString != null");
+            Array.Copy(fakeString, fakeKey, fakeString.Length);
+
             var configuration = new NodeConfiguration
                                 {
-                                    Identity = new Mystiko.Net.ServerNodeIdentityAndKey
-                                               {
-                                                   DateEpoch = 1,
-                                                   Nonce = 2,
-                                                   PrivateKey = new byte[32],
-                                                   PublicKeyX = new byte[32],
-                                                   PublicKeyXBase64 = "abcd",
-                                                   PublicKeyY = new byte[32],
-                                                   PublicKeyYBase64 = "efgh"
-                                               },
+                                    Identity = new Mystiko.Net.ServerNodeIdentityAndKey(
+                                        Convert.ToUInt64((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds),
+                                        fakeKey,
+                                        fakeKey,
+                                        2,
+                                        new byte[32]),
                                     ListenerPort = 1234,
                                     Passive = false,
                                     ResourceRecords = new System.Collections.Generic.List<ResourceRecord>()

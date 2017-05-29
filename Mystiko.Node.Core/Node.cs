@@ -136,51 +136,38 @@ namespace Mystiko.Node.Core
             int? listenerPort = null)
         {
             NodeConfiguration nodeConfiguration;
-            var configurationFile = filePath;
 
-            if (!File.Exists(configurationFile))
+            if (!File.Exists(filePath))
             {
                 // Create new node configuration file
-                nodeConfiguration = new NodeConfiguration
-                {
-                    Passive = passive ?? false,
-                    ListenerPort = listenerPort ?? 5109
-                };
-
-                var newIdentityAndKey = ServerNodeIdentity.Generate(3);
-                Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
-                nodeConfiguration.Identity = new ServerNodeIdentityAndKey
-                {
-                    DateEpoch = newIdentityAndKey.Item1.DateEpoch,
-                    Nonce = newIdentityAndKey.Item1.Nonce,
-                    PrivateKey = newIdentityAndKey.Item2,
-                    PublicKeyX = newIdentityAndKey.Item1.PublicKeyX,
-                    PublicKeyY = newIdentityAndKey.Item1.PublicKeyY
-                };
-                
-                await SaveConfigurationAsync(filePath, password, nodeConfiguration);
+                await CreateNewConfigurationFileAsync(filePath, password, passive, listenerPort);
             }
 
             // Read configuration file
-            var salt = new byte[64];
-            byte[] encKey;
-            using (var fs = new FileStream(configurationFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            while (true)
             {
-                // Read salt
-                var read = await fs.ReadAsync(salt, 0, 64);
-                Debug.Assert(read == 64);
-                Debug.Assert(fs.Position == 64);
-
-                // Get encryption key
-                using (var pbkdf2Encoder = new Rfc2898DeriveBytes(password, salt, 100000))
+                var salt = new byte[64];
+                byte[] encKey;
+                byte[] encryptedBytes;
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    encKey = pbkdf2Encoder.GetBytes(32);
-                    pbkdf2Encoder.Reset();
+                    // Read salt
+                    var read = await fs.ReadAsync(salt, 0, 64);
+                    Debug.Assert(read == 64);
+                    Debug.Assert(fs.Position == 64);
+
+                    // Get encryption key
+                    using (var pbkdf2Encoder = new Rfc2898DeriveBytes(password, salt, 100000))
+                    {
+                        encKey = pbkdf2Encoder.GetBytes(32);
+                        pbkdf2Encoder.Reset();
+                    }
+                    Debug.Assert(encKey != null, "encKey != null");
+
+                    encryptedBytes = new byte[fs.Length - 64];
+                    await fs.ReadAsync(encryptedBytes, 0, encryptedBytes.Length);
                 }
-                Debug.Assert(encKey != null, "encKey != null");
-                
-                var encryptedBytes = new byte[fs.Length - 64];
-                await fs.ReadAsync(encryptedBytes, 0, encryptedBytes.Length);
+
                 var decryptedStream = new MemoryStream();
                 await EncryptUtility.DecryptStreamAsync(new MemoryStream(encryptedBytes), encKey, decryptedStream);
                 var decryptedBytes = decryptedStream.ToArray();
@@ -197,10 +184,73 @@ namespace Mystiko.Node.Core
                 var version = Convert.ToInt32(decryptedString.Substring(8, 8));
 
                 var serializedConfiguration = decryptedString.Substring(16);
-                nodeConfiguration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
-            }
+                try
+                {
+                    nodeConfiguration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
 
-            return new Tuple<NodeConfiguration, byte[], byte[]>(nodeConfiguration, salt, encKey);
+                    // Is our configuration actually valid?
+
+                    // Validate identity
+                    if (nodeConfiguration?.Identity == null)
+                    {
+                        if (File.Exists(filePath))
+                            File.Delete(filePath);
+
+                        Logger.Error("Node identity was null!  Recreating configuration...");
+                        await CreateNewConfigurationFileAsync(filePath, password, passive, listenerPort);
+                    }
+                    else
+                    {
+                        byte difficultyTarget = 3;
+                        var validatedIdentity = HashUtility.ValidateIdentity(nodeConfiguration.Identity, difficultyTarget);
+                        if (!validatedIdentity.DifficultyValidated)
+                        {
+                            if (File.Exists(filePath))
+                                File.Delete(filePath);
+
+                            Logger.Debug($"Node identity did not meet difficulty target of {difficultyTarget}, only proved {validatedIdentity.DifficultyProvided}.  Recreating configuration...");
+                            await CreateNewConfigurationFileAsync(filePath, password, passive, listenerPort);
+                        }
+                        else
+                            return new Tuple<NodeConfiguration, byte[], byte[]>(nodeConfiguration, salt, encKey);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // The configuration file is broken.  Recreate.
+                    if (File.Exists(filePath))
+                        File.Delete(filePath);
+
+                    Logger.Error("Node encountered exception attempting to load configuration file.  Recreating configuration...", ex);
+                    await CreateNewConfigurationFileAsync(filePath, password, passive, listenerPort);
+                }
+            }
+        }
+
+        private static async Task CreateNewConfigurationFileAsync([NotNull] string filePath,
+            [NotNull] string password,
+            bool? passive = null,
+            int? listenerPort = null)
+        {
+            // Create new node configuration file
+            var nodeConfiguration = new NodeConfiguration
+            {
+                Passive = passive ?? false,
+                ListenerPort = listenerPort ?? 5109
+            };
+
+            var newIdentityAndKey = ServerNodeIdentity.Generate(3);
+            Debug.Assert(newIdentityAndKey != null, "newIdentityAndKey != null");
+            Debug.Assert(newIdentityAndKey.Item1 != null, "newIdentityAndKey.Item1 != null");
+            Debug.Assert(newIdentityAndKey.Item2 != null, "newIdentityAndKey.Item2 != null");
+            nodeConfiguration.Identity = new ServerNodeIdentityAndKey(
+                newIdentityAndKey.Item1.DateEpoch,
+                newIdentityAndKey.Item1.PublicKeyX,
+                newIdentityAndKey.Item1.PublicKeyY,
+                newIdentityAndKey.Item1.Nonce,
+                newIdentityAndKey.Item2);
+
+            await SaveConfigurationAsync(filePath, password, nodeConfiguration);
         }
 
         [NotNull]
@@ -215,12 +265,24 @@ namespace Mystiko.Node.Core
             var ret = await LoadConfigurationAsync(configurationFile, password, passive, listenerPort);
             Debug.Assert(ret.Item1 != null, "ret.Item1 != null");
             Debug.Assert(ret.Item1.Identity != null, "ret.Item1.Identity != null");
+
+            // Validate identity
             this.Configuration = ret.Item1;
+            if (this.Configuration.Identity == null)
+                throw new InvalidOperationException("Server node identity is not valid!");
+
+            var validatedIdentity = HashUtility.ValidateIdentity(this.Configuration.Identity, 1);
+            if (!validatedIdentity.DifficultyValidated)
+                throw new InvalidOperationException("Server node identity is not valid!");
+
             this.Salt = ret.Item2;
             this.EncryptionKey = ret.Item3;
 
+            Debug.Assert(this.Configuration.Identity != null, "this.Configuration.Identity != null");
             this.Location = FileUtility.ExclusiveOr(this.Configuration.Identity.PublicKeyX, this.Configuration.Identity.PublicKeyY);
-            Logger.Debug($"{this.Configuration.Identity.GetCompositeHash().Substring(3, 8)}: Node location: {FileUtility.ByteArrayToString(this.Location)}");
+
+            Debug.Assert(validatedIdentity.CompositeHash != null, "validatedIdentity.CompositeHash != null");
+            Logger.Debug($"{validatedIdentity.CompositeHash.Substring(3, 8)}: Node location: {FileUtility.ByteArrayToString(this.Location)}");
         }
 
         [NotNull]

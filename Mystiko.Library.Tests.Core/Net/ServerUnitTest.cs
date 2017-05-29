@@ -35,16 +35,13 @@ namespace Mystiko.Library.Tests.Net
             this._serverIdentity = ServerNodeIdentity.Generate(1);
             this._nodeConfiguration = new NodeConfiguration
             {
-                Identity = new ServerNodeIdentityAndKey
-                {
-                    DateEpoch = this._serverIdentity.Item1.DateEpoch,
-                    Nonce = this._serverIdentity.Item1.Nonce,
-                    PrivateKey = this._serverIdentity.Item2,
-                    PublicKeyX = this._serverIdentity.Item1.PublicKeyX,
-                    PublicKeyXBase64 = this._serverIdentity.Item1.PublicKeyXBase64,
-                    PublicKeyY = this._serverIdentity.Item1.PublicKeyY,
-                    PublicKeyYBase64 = this._serverIdentity.Item1.PublicKeyYBase64,
-                }
+                Identity = new ServerNodeIdentityAndKey(
+                    this._serverIdentity.Item1.DateEpoch,
+                    this._serverIdentity.Item1.PublicKeyX,
+                    this._serverIdentity.Item1.PublicKeyY,
+                    this._serverIdentity.Item1.Nonce,
+                    this._serverIdentity.Item2
+                )
             };
         }
 

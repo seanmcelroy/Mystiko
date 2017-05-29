@@ -10,6 +10,8 @@
 
 namespace Mystiko.Net
 {
+    using System;
+
     using JetBrains.Annotations;
 
     /// <summary>
@@ -22,6 +24,12 @@ namespace Mystiko.Net
         /// Gets or sets the byte array of the private key
         /// </summary>
         [NotNull]
-        public byte[] PrivateKey { get; set; }
+        public byte[] PrivateKey { get; }
+
+        public ServerNodeIdentityAndKey(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, [NotNull] byte[] privateKey)
+            : base(dateEpoch, publicKeyX, publicKeyY, nonce)
+        {
+            this.PrivateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));
+        }
     }
 }

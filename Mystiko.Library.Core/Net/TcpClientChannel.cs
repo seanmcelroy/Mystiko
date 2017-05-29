@@ -26,6 +26,8 @@ namespace Mystiko.Net
 
     using Messages;
 
+    using Mystiko.Cryptography;
+
     /// <summary>
     /// A network channel for communicating with clients over TCP/IP
     /// </summary>
@@ -218,14 +220,28 @@ namespace Mystiko.Net
                         }
                     }
 
-                    Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received {messageType}");
+                    Logger.Verbose($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received {messageType}");
 
-                    IMessage message;
                     switch (messageType)
                     {
                         case MessageType.NodeHello:
-                            message = new NodeHello();
+                            var recvHello = new NodeHello();
+                            recvHello.FromPayload(payloadBytes);
 
+                            // Validate proof of work
+                            byte targetDifficulty = 3;
+                            var validatedIdentityResult = HashUtility.ValidateIdentity(recvHello.DateEpoch, recvHello.PublicKeyX, recvHello.PublicKeyY, recvHello.Nonce, targetDifficulty);
+                            if (!validatedIdentityResult.DifficultyValidated)
+                            {
+                                Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Does not meet target of {targetDifficulty}, only met {validatedIdentityResult.DifficultyProvided}.  Declining.");
+                                this.Send(new NodeDecline
+                                {
+                                    DeclineReason = NodeDecline.NodeDeclineReasonCode.Untrusted,
+                                    Remediation = NodeDecline.NodeDeclineRemediationCode.Rekey
+                                });
+                            }
+                            
+                            Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Nothing is wrong with the node, but I'm telling them to scram anyway.");
                             this.Send(new NodeDecline
                                       {
                                           DeclineReason = NodeDecline.NodeDeclineReasonCode.Unwilling,
@@ -236,13 +252,14 @@ namespace Mystiko.Net
                             this._client.Dispose();
                             break;
                         case MessageType.NodeDecline:
-                            message = new NodeDecline();
+                            var recvNodeDecline = new NodeDecline();
+                            recvNodeDecline.FromPayload(payloadBytes);
+                            Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received NodeDecline: Reason={Enum.GetName(typeof(NodeDecline.NodeDeclineReasonCode), recvNodeDecline.DeclineReason)}, Remediation={Enum.GetName(typeof(NodeDecline.NodeDeclineRemediationCode), recvNodeDecline.Remediation)}");
                             break;
                         default:
                             Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Received unhandled message type {messageType}");
                             continue;
                     }
-                    message.FromPayload(payloadBytes);
                 }
             });
 

@@ -23,13 +23,18 @@ namespace Mystiko.Cryptography
         /// A value indicating whether or not the nonce value has the requisite number of
         /// leading zeros when hashed together with other fields of this identity
         /// </param>
+        /// <param name="difficultyProvided">
+        /// Gets a value indicating how much of the start of the hash was a '0', whether or not the target difficulty
+        /// was validated
+        /// </param>
         /// <param name="compositeHashString">
         /// The hash of the composite values of the <see cref="Mystiko.Net.ServerNodeIdentity"/> components,
         /// if the <paramref name="difficultyValidated"/> is true and the hash was validated with the nonce
         /// </param>
-        public ValidateIdentityResult(bool difficultyValidated, [CanBeNull] string compositeHashString)
+        public ValidateIdentityResult(bool difficultyValidated, byte difficultyProvided, [CanBeNull] string compositeHashString)
         {
             this.DifficultyValidated = difficultyValidated;
+            this.DifficultyProvided = difficultyProvided;
             this.CompositeHash = compositeHashString;
         }
 
@@ -39,6 +44,12 @@ namespace Mystiko.Cryptography
         /// </summary>
         [CanBeNull]
         public string CompositeHash { get; private set; }
+
+        /// <summary>
+        /// Gets a value indicating how much of the start of the hash was a '0', whether or not the target difficulty
+        /// was validated
+        /// </summary>
+        public byte DifficultyProvided { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether or not the nonce value has the requisite number of

@@ -37,7 +37,7 @@ namespace Mystiko.Net.Messages
             int peerNetworkingProtocolVersion,
             [NotNull] IPAddress publicIpAddress,
             ushort publicPort,
-            uint dateEpoch,
+            ulong dateEpoch,
             [NotNull] byte[] publicKeyX,
             [NotNull] byte[] publicKeyY,
             ulong nonce)
@@ -103,7 +103,7 @@ namespace Mystiko.Net.Messages
                 this.PeerNetworkingProtocolVersion = br.ReadInt32();
                 this.PublicIPAddress = new IPAddress(BitConverter.GetBytes(br.ReadInt32()));
                 this.PublicPort = br.ReadUInt16();
-                this.DateEpoch = br.ReadUInt32();
+                this.DateEpoch = br.ReadUInt64();
                 this.PublicKeyX = br.ReadBytes(32);
                 this.PublicKeyY = br.ReadBytes(32);
                 this.Nonce = br.ReadUInt64();
@@ -132,7 +132,7 @@ namespace Mystiko.Net.Messages
         /// <summary>
         /// Gets or sets the date the node keys were created
         /// </summary>
-        public uint? DateEpoch { get; set; }
+        public ulong? DateEpoch { get; set; }
 
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
@@ -222,7 +222,7 @@ namespace Mystiko.Net.Messages
                 this.PeerNetworkingProtocolVersion = br.ReadInt32();
                 this.PublicIPAddress = new IPAddress(BitConverter.GetBytes(br.ReadInt32()));
                 this.PublicPort = br.ReadUInt16();
-                this.DateEpoch = br.ReadUInt32();
+                this.DateEpoch = br.ReadUInt64();
                 this.PublicKeyX = br.ReadBytes(32);
                 this.PublicKeyY = br.ReadBytes(32);
                 this.Nonce = br.ReadUInt64();
