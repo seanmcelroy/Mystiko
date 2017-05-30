@@ -27,25 +27,63 @@ namespace Mystiko.Net.Messages
         /// <summary>
         /// Gets or sets the date the node keys were created
         /// </summary>
-        public ulong DateEpoch { get; set; }
+        public ulong DateEpoch { get; private set; }
 
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
         [NotNull]
-        public byte[] PublicKeyX { get; set; }
+        public byte[] PublicKeyX { get; private set; }
 
         /// <summary>
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
-        public byte[] PublicKeyY { get; set; }
+        public byte[] PublicKeyY { get; private set; }
 
         /// <summary>
         /// Gets or sets the nonce applied to the epoch and public keys of the node, proving
         /// as a proof of work
         /// </summary>
-        public ulong Nonce { get; set; }
+        public ulong Nonce { get; private set; }
+
+        public NodeHello(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce)
+        {
+            if (dateEpoch < Convert.ToUInt64((new DateTime(2017, 05, 01, 0, 0, 0, DateTimeKind.Utc) - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds))
+                throw new ArgumentOutOfRangeException(nameof(dateEpoch), "Date epoch cannot be before 2017-05-01");
+
+            if (dateEpoch > Convert.ToUInt64((DateTime.UtcNow.AddMinutes(10) - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds))
+                throw new ArgumentOutOfRangeException(nameof(dateEpoch), "Date epoch cannot be in the future");
+
+            if (publicKeyX == null)
+                throw new ArgumentNullException(nameof(publicKeyX));
+
+            if (publicKeyX.Length != 32)
+                throw new ArgumentException("Public key X is not exactly 32 bytes long", nameof(publicKeyX));
+
+            if (publicKeyY == null)
+                throw new ArgumentNullException(nameof(publicKeyY));
+
+            if (publicKeyY.Length != 32)
+                throw new ArgumentException("Public key Y is not exactly 32 bytes long", nameof(publicKeyY));
+
+            this.DateEpoch = dateEpoch;
+            this.PublicKeyX = publicKeyX;
+            this.PublicKeyY = publicKeyY;
+            this.Nonce = nonce;
+        }
+
+        private NodeHello()
+        {
+        }
+
+        [NotNull, Pure]
+        public static NodeHello CreateFromPayload([NotNull] byte[] payload)
+        {
+            var ret = new NodeHello();
+            ret.FromPayload(payload);
+            return ret;
+        }
 
         /// <inheritdoc />
         public byte[] ToMessage()
@@ -124,11 +162,8 @@ namespace Mystiko.Net.Messages
             using (var br = new BinaryReader(ms))
             {
                 this.DateEpoch = br.ReadUInt64();
-
-                this.PublicKeyX = br.ReadBytes(32);
-
-                this.PublicKeyY = br.ReadBytes(32);
-
+                this.PublicKeyX = br.ReadBytes(32) ?? throw new InvalidOperationException("Public Key X was provided as null");
+                this.PublicKeyY = br.ReadBytes(32) ?? throw new InvalidOperationException("Public Key Y was provided as null");
                 this.Nonce = br.ReadUInt64();
 
                 var version = br.ReadUInt16();

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26228.4
+VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{36489263-D8F8-439D-BFA0-AE656A74AC44}"
 	ProjectSection(SolutionItems) = preProject
@@ -31,6 +31,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NetworkMessages", "NetworkMessages", "{BB1050F3-D7AF-42EC-8C24-8DD114572929}"
 	ProjectSection(SolutionItems) = preProject
 		Documentation\NetworkMessages\BlockHave.md = Documentation\NetworkMessages\BlockHave.md
+		Documentation\NetworkMessages\BlockWant.md = Documentation\NetworkMessages\BlockWant.md
 		Documentation\NetworkMessages\NodeDecline.md = Documentation\NetworkMessages\NodeDecline.md
 		Documentation\NetworkMessages\NodeHello.md = Documentation\NetworkMessages\NodeHello.md
 	EndProjectSection

@@ -31,18 +31,8 @@ namespace Mystiko.Net
         /// </param>
         public DiscoveredPeer([NotNull] ServerNodeIdentity nodeIdentity, [NotNull] IPEndPoint discoveryEndpoint)
         {
-            if (nodeIdentity == null)
-            {
-                throw new ArgumentNullException(nameof(nodeIdentity));
-            }
-
-            if (discoveryEndpoint == null)
-            {
-                throw new ArgumentNullException(nameof(discoveryEndpoint));
-            }
-
-            this.NodeIdentity = nodeIdentity;
-            this.DiscoveryEndpoint = discoveryEndpoint;
+            this.NodeIdentity = nodeIdentity ?? throw new ArgumentNullException(nameof(nodeIdentity));
+            this.DiscoveryEndpoint = discoveryEndpoint ?? throw new ArgumentNullException(nameof(discoveryEndpoint));
         }
 
         /// <summary>

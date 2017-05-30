@@ -24,7 +24,7 @@ namespace Mystiko.Net
     using Mystiko.Database.Records;
 
     /// <summary>
-    /// A server capable of listening for <see cref="Client"/> connections from other nodes in the network
+    /// A server capable of listening for <see cref="TcpClientChannel"/> connections from other nodes in the network
     /// </summary>
     public class Server : IDisposable
     {
@@ -33,6 +33,8 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
+        [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Server));
 
         /// <summary>
@@ -108,6 +110,7 @@ namespace Mystiko.Net
         /// <summary>
         /// Places the server into a state where it listens for new connections
         /// </summary>
+        /// <param name="disableLogging">A value indicating or not to disable logging</param>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
         [NotNull]

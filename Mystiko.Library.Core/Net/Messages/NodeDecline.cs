@@ -129,6 +129,7 @@ namespace Mystiko.Net.Messages
                 bw.Write((byte)this.Remediation); // 1 byte
                 bw.Write(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
                 bw.Write(new byte[] { 0x0C, 0xAB, 0x00, 0x5E, 0xFF, 0xFF, 0xFF, 0xFF }); // Caboose
+                // ReSharper disable once AssignNullToNotNullAttribute
                 return ms.ToArray();
             }
         }

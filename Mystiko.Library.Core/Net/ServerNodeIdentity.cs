@@ -45,6 +45,7 @@ namespace Mystiko.Net
         /// Gets or sets the base-64 encoded value of the public key X-value for this identity
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         public string PublicKeyXBase64 => Convert.ToBase64String(this.PublicKeyX);
 
         /// <summary>
@@ -57,6 +58,7 @@ namespace Mystiko.Net
         /// Gets or sets the base-64 encoded value of the public key Y-value for this identity
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         public string PublicKeyYBase64 => Convert.ToBase64String(this.PublicKeyY);
 
         /// <summary>
@@ -142,15 +144,18 @@ namespace Mystiko.Net
             Debug.Assert(privD != null, "privD != null");
 
             Debug.Assert(publicKeyParams != null, "publicKeyParams != null");
+            Debug.Assert(ec.G != null, "ec.G != null");
             var qa = ec.G.Multiply(privD);
             Debug.Assert(qa != null, "qa != null");
-            Debug.Assert(qa.Normalize().XCoord != null, "qa.X != null");
-            var publicKeyX = qa.Normalize().XCoord.ToBigInteger().ToByteArrayUnsigned();
+            var qaNormalize = qa.Normalize();
+            Debug.Assert(qaNormalize != null, "qaNormalize != null");
+            Debug.Assert(qaNormalize.XCoord != null, "qa.X != null");
+            var publicKeyX = qaNormalize.XCoord.ToBigInteger()?.ToByteArrayUnsigned();
             if (publicKeyX == null || publicKeyX.Length != 32)
                 throw new InvalidOperationException("Failure to create 32-byte public key X");
 
-            Debug.Assert(qa.Normalize().YCoord != null, "qa.Y != null");
-            var publicKeyY = qa.Normalize().YCoord.ToBigInteger().ToByteArrayUnsigned();
+            Debug.Assert(qaNormalize.YCoord != null, "qa.Y != null");
+            var publicKeyY = qaNormalize.YCoord.ToBigInteger()?.ToByteArrayUnsigned();
             if (publicKeyY == null || publicKeyY.Length != 32)
                 throw new InvalidOperationException("Failure to create 32-byte public key Y");
 

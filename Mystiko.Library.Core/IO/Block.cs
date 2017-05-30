@@ -14,19 +14,9 @@
     {
         public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last64Bytes)
         {
-            if (hash == null)
-            {
-                throw new ArgumentNullException(nameof(hash));
-            }
-
-            if (last64Bytes == null)
-            {
-                throw new ArgumentNullException(nameof(last64Bytes));
-            }
-
             this.Path = path;
-            this.FullHash = hash;
-            this.Last64Bytes = last64Bytes;
+            this.FullHash = hash ?? throw new ArgumentNullException(nameof(hash));
+            this.Last64Bytes = last64Bytes ?? throw new ArgumentNullException(nameof(last64Bytes));
         }
 
         [CanBeNull]
@@ -175,8 +165,11 @@
                 using (var bs = new BufferedStream(fs))
                 {
                     blockFileHash = hasher.ComputeHash(bs);
+                    Debug.Assert(blockFileHash != null, "blockFileHash != null");
                     if (verbose)
+                    {
                         Console.WriteLine($"Hash for: {new FileInfo(block.Path).Name}: {FileUtility.ByteArrayToString(blockFileHash).Substring(0, 8)}");
+                    }
                 }
 
                 if (!encryptedChunkHash.SequenceEqual(blockFileHash))

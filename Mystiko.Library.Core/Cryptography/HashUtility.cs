@@ -210,6 +210,7 @@ namespace Mystiko.Cryptography
         /// <summary>
         /// Validates the nonce of the identity matches the <paramref name="targetDifficulty"/> number of leading zeros required
         /// </summary>
+        /// <param name="serverNodeIdentity">The identity to validate to the supplied <paramref name="targetDifficulty"/></param>
         /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
         /// <returns>A value indicating whether or not the <see cref="ServerNodeIdentity.Nonce"/> on the <paramref name="serverNodeIdentity"/> object has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
         [NotNull, Pure]

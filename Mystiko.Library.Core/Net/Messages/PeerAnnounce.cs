@@ -42,11 +42,6 @@ namespace Mystiko.Net.Messages
             [NotNull] byte[] publicKeyY,
             ulong nonce)
         {
-            if (publicIpAddress == null)
-            {
-                throw new ArgumentNullException(nameof(publicIpAddress));
-            }
-
             if (publicKeyX == null)
             {
                 throw new ArgumentNullException(nameof(publicKeyX));
@@ -68,7 +63,7 @@ namespace Mystiko.Net.Messages
             }
 
             this.PeerNetworkingProtocolVersion = peerNetworkingProtocolVersion;
-            this.PublicIPAddress = publicIpAddress;
+            this.PublicIPAddress = publicIpAddress ?? throw new ArgumentNullException(nameof(publicIpAddress));
             this.PublicPort = publicPort;
             this.DateEpoch = dateEpoch;
             this.PublicKeyX = publicKeyX;

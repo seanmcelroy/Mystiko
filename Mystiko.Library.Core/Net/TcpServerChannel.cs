@@ -35,6 +35,7 @@ namespace Mystiko.Net
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpServerChannel));
 
         /// <summary>
@@ -99,12 +100,7 @@ namespace Mystiko.Net
             [CanBeNull] IPAddress multicastGroupAddress = null,
             int multicastReceivePort = 5110)
         {
-            if (serverIdentity == null)
-            {
-                throw new ArgumentNullException(nameof(serverIdentity));
-            }
-
-            this._serverIdentity = serverIdentity;
+            this._serverIdentity = serverIdentity ?? throw new ArgumentNullException(nameof(serverIdentity));
             this._listener = new TcpListener(listenAddress ?? IPAddress.Any, listenPort);
 
             // Setup multicast UDP for local peer discovery
@@ -208,17 +204,10 @@ namespace Mystiko.Net
                     Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Connected to peer {endpoint.Address}:{endpoint.Port}");
                 }
                 var channel = new TcpClientChannel(this._serverIdentity, tcpClient, cancellationToken);
-                
+
                 // We just started.  Send the hello announcement
                 Logger.Verbose($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending NodeHello to peer {channel.RemoteEndpoint.Address}:{channel.RemoteEndpoint.Port}");
-                channel.Send(new NodeHello
-                {
-                    DateEpoch = this._serverIdentity.DateEpoch,
-                    Nonce = this._serverIdentity.Nonce,
-                    PublicKeyX = this._serverIdentity.PublicKeyX,
-                    PublicKeyY = this._serverIdentity.PublicKeyY
-                });
-
+                channel.Send(new NodeHello(this._serverIdentity.DateEpoch, this._serverIdentity.PublicKeyX, this._serverIdentity.PublicKeyY, this._serverIdentity.Nonce));
                 return channel;
             }
             catch (SocketException sex)

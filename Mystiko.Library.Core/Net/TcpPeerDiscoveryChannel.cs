@@ -36,6 +36,7 @@ namespace Mystiko.Net
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpPeerDiscoveryChannel));
 
         /// <summary>
@@ -118,12 +119,7 @@ namespace Mystiko.Net
             [CanBeNull] IPAddress multicastGroupAddress = null,
             int multicastReceivePort = 5110)
         {
-            if (serverIdentity == null)
-            {
-                throw new ArgumentNullException(nameof(serverIdentity));
-            }
-
-            this._serverIdentity = serverIdentity;
+            this._serverIdentity = serverIdentity ?? throw new ArgumentNullException(nameof(serverIdentity));
 
             // Setup multicast UDP for local peer discovery
             this._multicastGroupAddress = multicastGroupAddress ?? IPAddress.Parse("224.0.23.191");

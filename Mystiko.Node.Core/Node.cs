@@ -44,6 +44,7 @@ namespace Mystiko.Node.Core
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Node));
 
         /// <summary>
@@ -79,22 +80,23 @@ namespace Mystiko.Node.Core
         /// The network server object
         /// </summary>
         [CanBeNull]
-        private Server server;
+        private Server _server;
 
         /// <summary>
         /// If a lock file exists, this is the stream holding that lock
         /// </summary>
         [CanBeNull]
-        private FileStream lockFileStream;
+        private FileStream _lockFileStream;
 
         /// <summary>
         /// A value indicating whether or not this object is disposed
         /// </summary>
-        private bool disposed;
+        private bool _disposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Node"/> class.
         /// </summary>
+        /// <param name="tag">The tag, a name of a node that can be used to identify it in multiple-node local simulations</param>
         /// <param name="password">The password used to unlock the node's database</param>
         /// <param name="passive">
         /// A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only
@@ -104,13 +106,10 @@ namespace Mystiko.Node.Core
         /// </param>
         public Node([NotNull] string tag, [NotNull] string password, bool? passive = null, int? listenerPort = null)
         {
-            if (tag == null)
-                throw new ArgumentNullException(nameof(tag));
-
             if (password == null)
                 throw new ArgumentNullException(nameof(password));
 
-            this.Tag = tag;
+            this.Tag = tag ?? throw new ArgumentNullException(nameof(tag));
             this.LoadConfigurationInternalAsync(null, password, passive, listenerPort).GetAwaiter().GetResult();
             Debug.Assert(this.Configuration != null, "this.Configuration != null");
         }
@@ -135,8 +134,6 @@ namespace Mystiko.Node.Core
             bool? passive = null,
             int? listenerPort = null)
         {
-            NodeConfiguration nodeConfiguration;
-
             if (!File.Exists(filePath))
             {
                 // Create new node configuration file
@@ -186,7 +183,7 @@ namespace Mystiko.Node.Core
                 var serializedConfiguration = decryptedString.Substring(16);
                 try
                 {
-                    nodeConfiguration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
+                    var nodeConfiguration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
 
                     // Is our configuration actually valid?
 
@@ -392,7 +389,7 @@ namespace Mystiko.Node.Core
             if (this.Configuration == null)
                 throw new InvalidOperationException("Configuration has not been loaded");
 
-            this.server = new Server(this.Configuration);
+            this._server = new Server(this.Configuration);
 
             // Setup data directory
 
@@ -412,7 +409,7 @@ namespace Mystiko.Node.Core
             var lockFile = Path.Combine(libraryDirectory, "lock");
             if (!File.Exists(lockFile))
             {
-                this.lockFileStream = File.Open(lockFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+                this._lockFileStream = File.Open(lockFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
             }
             else
             {
@@ -426,12 +423,12 @@ namespace Mystiko.Node.Core
                     throw new InvalidOperationException($"Library directory {libraryDirectory} already in use by another process.", ex);
                 }
 
-                this.lockFileStream = fileStreamAttempt;
+                this._lockFileStream = fileStreamAttempt;
             }
             
             // Start network subsystem
             Logger.Info($"Starting server initialization{(" " + this.Tag).TrimEnd()}");
-            await this.server.StartAsync(this.DisableLogging, cancellationToken);
+            await this._server.StartAsync(this.DisableLogging, cancellationToken);
             Logger.Info($"Server process initialization{(" " + this.Tag).TrimEnd()} has completed");
         }
 
@@ -569,16 +566,16 @@ namespace Mystiko.Node.Core
         /// </summary>
         public void Dispose()
         {
-            if (!this.disposed)
+            if (!this._disposed)
             {
                 // Dispose managed resources.
-                this.server.Dispose();
+                this._server.Dispose();
 
-                if (this.lockFileStream != null)
+                if (this._lockFileStream != null)
                 {
-                    var lockFileName = this.lockFileStream.Name;
-                    this.lockFileStream.Dispose();
-                    this.lockFileStream = null;
+                    var lockFileName = this._lockFileStream.Name;
+                    this._lockFileStream.Dispose();
+                    this._lockFileStream = null;
                     File.Delete(lockFileName);
                 }
 
@@ -586,7 +583,7 @@ namespace Mystiko.Node.Core
                 // if we add them, they need to be released here.
             }
 
-            this.disposed = true;
+            this._disposed = true;
         }
     }
 }

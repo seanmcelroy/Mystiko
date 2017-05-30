@@ -12,11 +12,9 @@ namespace Mystiko.Net
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -40,6 +38,7 @@ namespace Mystiko.Net
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpClientChannel));
         
         [NotNull]
@@ -53,8 +52,10 @@ namespace Mystiko.Net
 
         [NotNull]
         private byte[] _buffer = new byte[0];
+
         [NotNull]
         private readonly object _bufferLock = new object();
+
         private int _readPosition;
         
         /// <summary>
@@ -79,12 +80,7 @@ namespace Mystiko.Net
                 throw new ArgumentNullException(nameof(serverIdentity));
             }
 
-            if (client == null)
-            {
-                throw new ArgumentNullException(nameof(client));
-            }
-
-            this._client = client;
+            this._client = client ?? throw new ArgumentNullException(nameof(client));
 
             // Setup receiver task
             this._receiveTask = new Task(async () =>
@@ -225,8 +221,7 @@ namespace Mystiko.Net
                     switch (messageType)
                     {
                         case MessageType.NodeHello:
-                            var recvHello = new NodeHello();
-                            recvHello.FromPayload(payloadBytes);
+                            var recvHello = NodeHello.CreateFromPayload(payloadBytes);
 
                             // Validate proof of work
                             byte targetDifficulty = 3;

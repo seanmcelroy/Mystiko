@@ -12,7 +12,9 @@ namespace Mystiko.Cryptography
     using JetBrains.Annotations;
 
     /// <summary>
+#pragma warning disable 1574
     /// The result of a call to <see cref="HashUtility.ValidateIdentity(uint, byte[], byte[], ulong, int)"/>
+#pragma warning restore 1574
     /// </summary>
     public class ValidateIdentityResult
     {

@@ -44,7 +44,7 @@ namespace Mystiko.Database.Records
         /// <summary>
         /// Gets or sets a value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only
         /// </summary>
-        public bool Passive { get; set; } = false;
+        public bool Passive { get; set; }
 
         /// <summary>
         /// Gets or sets the port on which to listen for peer client connections.  By default, this is 5109
