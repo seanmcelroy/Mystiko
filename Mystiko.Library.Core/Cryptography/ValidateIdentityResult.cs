@@ -9,8 +9,6 @@
 
 namespace Mystiko.Cryptography
 {
-    using JetBrains.Annotations;
-
     /// <summary>
 #pragma warning disable 1574
     /// The result of a call to <see cref="HashUtility.ValidateIdentity(uint, byte[], byte[], ulong, int)"/>
@@ -33,7 +31,7 @@ namespace Mystiko.Cryptography
         /// The hash of the composite values of the <see cref="Mystiko.Net.ServerNodeIdentity"/> components,
         /// if the <paramref name="difficultyValidated"/> is true and the hash was validated with the nonce
         /// </param>
-        public ValidateIdentityResult(bool difficultyValidated, byte difficultyProvided, [CanBeNull] string compositeHashString)
+        public ValidateIdentityResult(bool difficultyValidated, byte difficultyProvided, string? compositeHashString)
         {
             this.DifficultyValidated = difficultyValidated;
             this.DifficultyProvided = difficultyProvided;
@@ -44,8 +42,7 @@ namespace Mystiko.Cryptography
         /// Gets the hash of the composite values of the <see cref="Mystiko.Net.ServerNodeIdentity"/> components,
         /// if the <see cref="DifficultyValidated"/> is true and the hash was validated with the nonce
         /// </summary>
-        [CanBeNull]
-        public string CompositeHash { get; private set; }
+        public string? CompositeHash { get; private set; }
 
         /// <summary>
         /// Gets a value indicating how much of the start of the hash was a '0', whether or not the target difficulty

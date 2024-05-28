@@ -12,8 +12,6 @@ namespace Mystiko.Net
 {
     using System;
 
-    using JetBrains.Annotations;
-
     /// <summary>
     /// An identity of a node consisting of a date of generation, key pair, and nonce proving the date and public key
     /// meet a target difficulty requirement.  It also includes the private key for local serialization and storage.
@@ -23,10 +21,9 @@ namespace Mystiko.Net
         /// <summary>
         /// Gets or sets the byte array of the private key
         /// </summary>
-        [NotNull]
         public byte[] PrivateKey { get; }
 
-        public ServerNodeIdentityAndKey(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, [NotNull] byte[] privateKey)
+        public ServerNodeIdentityAndKey(ulong dateEpoch, byte[] publicKeyX, byte[] publicKeyY, ulong nonce, byte[] privateKey)
             : base(dateEpoch, publicKeyX, publicKeyY, nonce)
         {
             this.PrivateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));

@@ -18,8 +18,6 @@ namespace Mystiko.Net
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using log4net;
 
     using Messages;
@@ -37,35 +35,27 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
-        [NotNull]
-        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpClientChannel));
         
-        [NotNull]
         private readonly TcpClient _client;
 
-        [NotNull]
         private readonly Task _receiveTask;
 
-        [NotNull]
         private readonly Task _parseTask;
 
-        [NotNull]
         private byte[] _buffer = new byte[0];
 
-        [NotNull]
-        private readonly object _bufferLock = new object();
+        private readonly object _bufferLock = new();
 
         private int _readPosition;
         
         /// <summary>
         /// The message handlers for this channel
         /// </summary>
-        [NotNull]
-        private readonly List<Action<IMessage>> _messageHandlers = new List<Action<IMessage>>();
+        private readonly List<Action<IMessage>> _messageHandlers = [];
 
         /// <inheritdoc />
-        public IPEndPoint RemoteEndpoint => this._client.Connected ? (IPEndPoint)this._client.Client?.RemoteEndPoint : null;
+        public IPEndPoint? RemoteEndpoint => _client.Connected ? (IPEndPoint?)_client.Client.RemoteEndPoint : null;
 
         /// <summary>
         /// Creates a new client channel
@@ -73,24 +63,21 @@ namespace Mystiko.Net
         /// <param name="serverIdentity">The identity of our server node</param>
         /// <param name="client">The client to which we are connecting</param>
         /// <param name="serverCancellationToken"></param>
-        public TcpClientChannel([NotNull] ServerNodeIdentity serverIdentity, [NotNull] TcpClient client, CancellationToken serverCancellationToken = default(CancellationToken))
+        public TcpClientChannel(ServerNodeIdentity serverIdentity, TcpClient client, CancellationToken serverCancellationToken = default)
         {
-            if (serverIdentity == null)
-            {
-                throw new ArgumentNullException(nameof(serverIdentity));
-            }
+            ArgumentNullException.ThrowIfNull(serverIdentity);
 
-            this._client = client ?? throw new ArgumentNullException(nameof(client));
+            _client = client ?? throw new ArgumentNullException(nameof(client));
 
             // Setup receiver task
-            this._receiveTask = new Task(async () =>
+            _receiveTask = new Task(async () =>
             {
-                var localEndpoint = (IPEndPoint)this._client.Client.LocalEndPoint;
+                var localEndpoint = (IPEndPoint?)_client.Client.LocalEndPoint;
                 Debug.Assert(localEndpoint != null, "localEndpoint != null");
                 Logger.Verbose($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Starting receiver loop for {localEndpoint.Address}:{localEndpoint.Port}");
                 try
                 {
-                    var stream = this._client.GetStream();
+                    var stream = _client.GetStream();
                     while (!serverCancellationToken.IsCancellationRequested && stream.CanRead)
                     {
                         try
@@ -102,27 +89,27 @@ namespace Mystiko.Net
                             // There might be more data, so store the data received so far.
                             if (bytesRead > 0)
                             {
-                                lock (this._bufferLock)
+                                lock (_bufferLock)
                                 {
-                                    var rpos = this._readPosition;
-                                    var blen = this._buffer.Length;
+                                    var rpos = _readPosition;
+                                    var blen = _buffer.Length;
                                     var newBuffer = new byte[blen + bytesRead - rpos];
-                                    Buffer.BlockCopy(this._buffer, rpos, newBuffer, 0, blen - rpos);
+                                    Buffer.BlockCopy(_buffer, rpos, newBuffer, 0, blen - rpos);
                                     Buffer.BlockCopy(readBytes, 0, newBuffer, blen, bytesRead);
-                                    Debug.Assert(this._buffer.Length == 0 || newBuffer[0] == this._buffer[rpos]);
+                                    Debug.Assert(_buffer.Length == 0 || newBuffer[0] == _buffer[rpos]);
                                     Debug.Assert(newBuffer[newBuffer.Length - 1] == readBytes[bytesRead - 1]);
-                                    this._buffer = newBuffer;
-                                    this._readPosition = 0;
+                                    _buffer = newBuffer;
+                                    _readPosition = 0;
                                 }
                             }
-                            else if (this._readPosition == this._buffer.Length - 1)
+                            else if (_readPosition == _buffer.Length - 1)
                             {
-                                lock (this._bufferLock)
+                                lock (_bufferLock)
                                 {
-                                    if (this._readPosition == this._buffer.Length - 1)
+                                    if (_readPosition == _buffer.Length - 1)
                                     {
-                                        this._buffer = new byte[0];
-                                        this._readPosition = 0;
+                                        _buffer = new byte[0];
+                                        _readPosition = 0;
                                     }
                                 }
                             }
@@ -144,25 +131,25 @@ namespace Mystiko.Net
             });
 
             // Setup parser task
-            this._parseTask = new Task(() =>
+            _parseTask = new Task(() =>
             {
                 while (!serverCancellationToken.IsCancellationRequested)
                 {
                     // The minimum message is 24 bytes (header, message type, qwordcount, caboose)
                     MessageType messageType;
                     ulong qwordCount;
-                    if (this._buffer.Length - this._readPosition < 24)
+                    if (_buffer.Length - _readPosition < 24)
                     {
                         Thread.Sleep(1000);
                         continue;
                     }
 
-                    lock (this._bufferLock)
+                    lock (_bufferLock)
                     {
                         // Find header
                         var potentialHeader = new byte[8];
-                        Buffer.BlockCopy(this._buffer, this._readPosition, potentialHeader, 0, 8);
-                        this._readPosition += 8;
+                        Buffer.BlockCopy(_buffer, _readPosition, potentialHeader, 0, 8);
+                        _readPosition += 8;
                         if (!potentialHeader.SequenceEqual(MessageHeader))
                         {
                             Logger.Warn("{serverIdentity.GetCompositeHash().Substring(3, 8)}: Expected header, but magic value not found");
@@ -170,8 +157,8 @@ namespace Mystiko.Net
                         }
 
                         // Find message type
-                        var messageTypeByte = this._buffer[this._readPosition];
-                        this._readPosition++;
+                        var messageTypeByte = _buffer[_readPosition];
+                        _readPosition++;
                         messageType = MessageType.Unknown;
                         if (!Enum.IsDefined(typeof(MessageType), messageTypeByte))
                         {
@@ -184,31 +171,31 @@ namespace Mystiko.Net
 
                         // Get message length
                         var qwordCountBytes = new byte[7];
-                        Buffer.BlockCopy(this._buffer, this._readPosition, qwordCountBytes, 0, 7);
-                        this._readPosition += 7;
+                        Buffer.BlockCopy(_buffer, _readPosition, qwordCountBytes, 0, 7);
+                        _readPosition += 7;
                         qwordCount = BitConverter.ToUInt64(qwordCountBytes.Append((byte)0).ToArray(), 0);
                     }
 
                     // Do we have the complete message?
                     var payloadByteCount = qwordCount * 8;
-                    while (!serverCancellationToken.IsCancellationRequested && (ulong)(this._buffer.Length - this._readPosition + 1) < payloadByteCount)
+                    while (!serverCancellationToken.IsCancellationRequested && (ulong)(_buffer.Length - _readPosition + 1) < payloadByteCount)
                     {
                         // Nope, wait a bit.
                         Thread.Sleep(1000);
                     }
 
                     byte[] payloadBytes;
-                    lock (this._bufferLock)
+                    lock (_bufferLock)
                     {
                         // Get payload
                         payloadBytes = new byte[qwordCount * 8];
-                        Buffer.BlockCopy(this._buffer, this._readPosition, payloadBytes, 0, payloadBytes.Length);
-                        this._readPosition += payloadBytes.Length;
+                        Buffer.BlockCopy(_buffer, _readPosition, payloadBytes, 0, payloadBytes.Length);
+                        _readPosition += payloadBytes.Length;
 
                         // Find header
                         var potentialCaboose = new byte[8];
-                        Buffer.BlockCopy(this._buffer, this._readPosition, potentialCaboose, 0, 8);
-                        this._readPosition += 8;
+                        Buffer.BlockCopy(_buffer, _readPosition, potentialCaboose, 0, 8);
+                        _readPosition += 8;
                         if (!potentialCaboose.SequenceEqual(MessageCaboose))
                         {
                             Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Expected caboose, but magic value not found");
@@ -229,7 +216,7 @@ namespace Mystiko.Net
                             if (!validatedIdentityResult.DifficultyValidated)
                             {
                                 Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Does not meet target of {targetDifficulty}, only met {validatedIdentityResult.DifficultyProvided}.  Declining.");
-                                this.Send(new NodeDecline
+                                Send(new NodeDecline
                                 {
                                     DeclineReason = NodeDecline.NodeDeclineReasonCode.Untrusted,
                                     Remediation = NodeDecline.NodeDeclineRemediationCode.Rekey
@@ -237,14 +224,14 @@ namespace Mystiko.Net
                             }
                             
                             Logger.Warn($"{serverIdentity.GetCompositeHash().Substring(3, 8)}: Nothing is wrong with the node, but I'm telling them to scram anyway.");
-                            this.Send(new NodeDecline
+                            Send(new NodeDecline
                                       {
                                           DeclineReason = NodeDecline.NodeDeclineReasonCode.Unwilling,
                                           Remediation = NodeDecline.NodeDeclineRemediationCode.Scram
                                       });
-                            this._receiveTask.Wait(1);
-                            this._parseTask.Wait(1);
-                            this._client.Dispose();
+                            _receiveTask.Wait(1);
+                            _parseTask.Wait(1);
+                            _client.Dispose();
                             break;
                         case MessageType.NodeDecline:
                             var recvNodeDecline = new NodeDecline();
@@ -258,30 +245,24 @@ namespace Mystiko.Net
                 }
             });
 
-            this._receiveTask.Start();
-            this._parseTask.Start();
+            _receiveTask.Start();
+            _parseTask.Start();
         }
 
         /// <inheritdoc />
         public void RegisterHandler(Action<IMessage> messageHandler)
         {
-            if (messageHandler == null)
-            {
-                throw new ArgumentNullException(nameof(messageHandler));
-            }
+            ArgumentNullException.ThrowIfNull(messageHandler);
 
-            this._messageHandlers.Add(messageHandler);
+            _messageHandlers.Add(messageHandler);
         }
 
         /// <inheritdoc />
         public void Send(IMessage message)
         {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
+            ArgumentNullException.ThrowIfNull(message);
 
-            this._client.Client?.Send(message.ToMessage());
+            _client.Client?.Send(message.ToMessage());
         }
     }
 }

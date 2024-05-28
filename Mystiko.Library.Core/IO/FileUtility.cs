@@ -19,8 +19,6 @@ namespace Mystiko.IO
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using Mystiko.Cryptography;
 
     using Newtonsoft.Json;
@@ -40,148 +38,132 @@ namespace Mystiko.IO
         /// </summary>
         public const uint FILE_PACKAGING_PROTOCOL_VERSION = 1;
 
-        [NotNull, ItemNotNull, Pure]
+        private static readonly string[] separator = [".temp"];
+
         public static async Task<FileManifest> ChunkFileMetadataOnly(
-            [NotNull] FileInfo file,
+            FileInfo file,
             bool verbose = false,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            if (file == null)
-                throw new ArgumentNullException(nameof(file));
+            ArgumentNullException.ThrowIfNull(file);
             if (!file.Exists)
                 throw new FileNotFoundException("File does not exist", file.FullName);
 
-            using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-            using (var bs = new BufferedStream(fs, 1024 * 1024 * 16))
+            using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+            using var bs = new BufferedStream(fs, 1024 * 1024 * 16);
+
+            try
             {
-                try
-                {
-                    Console.WriteLine();
-                    var result = await ChunkFile(
-                        bs,
-                        file,
-                        Block.NoSavedChunk,
-                        verbose: verbose,
-                        progress: new Progress<ChunkFileProgress>(p =>
+                Console.WriteLine();
+                var result = await ChunkFile(
+                    bs,
+                    file,
+                    Block.NoSavedChunk,
+                    verbose: verbose,
+                    progress: new Progress<ChunkFileProgress>(p =>
+                        {
+                            if (verbose)
                             {
-                                if (verbose)
-                                {
-                                    Console.Write(".");
-                                }
-                            }),
-                        cancellationToken: cancellationToken);
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Unable to chunk file '{file.FullName}'", ex);
-                }
+                                Console.Write(".");
+                            }
+                        }),
+                    cancellationToken: cancellationToken);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Unable to chunk file '{file.FullName}'", ex);
             }
         }
 
-        [NotNull]
-        public static async Task<FileManifest> ChunkFileViaTemp([NotNull] FileInfo file, CancellationToken cancellationToken = default(CancellationToken))
+        public static async Task<FileManifest> ChunkFileViaTemp(FileInfo file, CancellationToken cancellationToken = default)
         {
-            if (file == null)
-            {
-                throw new ArgumentNullException(nameof(file));
-            }
+            ArgumentNullException.ThrowIfNull(file);
 
             if (!file.Exists)
             {
                 throw new FileNotFoundException("File does not exist", file.FullName);
             }
 
-            using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-            using (var bs = new BufferedStream(fs))
-            {
-                return await ChunkFile(bs, file, Block.CreateViaTemp, null, false, cancellationToken: cancellationToken);
-            }
+            using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+            using var bs = new BufferedStream(fs);
+
+            return await ChunkFile(bs, file, Block.CreateViaTemp, null, false, cancellationToken: cancellationToken);
         }
 
-        [NotNull, ItemNotNull]
         public static async Task<FileManifest> ChunkFileViaOutputDirectory(
-            [NotNull] FileInfo file,
-            [NotNull] DirectoryInfo outputDirectory,
+            FileInfo file,
+            DirectoryInfo outputDirectory,
             bool overwrite = false,
             bool verbose = false,
             bool verify = false,
             int? chunkSize = null,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            if (file == null)
-                throw new ArgumentNullException(nameof(file));
+            ArgumentNullException.ThrowIfNull(file);
             if (!file.Exists)
                 throw new FileNotFoundException("File does not exist", file.FullName);
-            if (outputDirectory == null)
-                throw new ArgumentNullException(nameof(outputDirectory));
+            ArgumentNullException.ThrowIfNull(outputDirectory);
 
-            using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-            using (var bs = new BufferedStream(fs, 1024 * 1024 * 16))
-            {
-                return await ChunkFile(
-                    bs,
-                    file,
-                    async (hasher, encryptedChunk, chunkFileName, ordering) =>
+            using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+            using var bs = new BufferedStream(fs, 1024 * 1024 * 16);
+
+            return await ChunkFile(
+                bs,
+                file,
+                async (hasher, encryptedChunk, chunkFileName, ordering) =>
+                {
+                    Debug.Assert(hasher != null, "hasher != null");
+                    Debug.Assert(encryptedChunk != null, "encryptedChunk != null");
+                    Debug.Assert(chunkFileName != null, "chunkFileName != null");
+                    return await Block.CreateViaOutputDirectory(hasher, encryptedChunk, outputDirectory, chunkFileName, overwrite, verbose, verify);
+                },
+                verbose: verbose,
+                chunkSize: chunkSize,
+                progress: new Progress<ChunkFileProgress>(p =>
+                {
+                    if (verbose)
                     {
-                        Debug.Assert(hasher != null, "hasher != null");
-                        Debug.Assert(encryptedChunk != null, "encryptedChunk != null");
-                        Debug.Assert(chunkFileName != null, "chunkFileName != null");
-                        return await Block.CreateViaOutputDirectory(hasher, encryptedChunk, outputDirectory, chunkFileName, overwrite, verbose, verify);
-                    },
-                    verbose: verbose,
-                    chunkSize: chunkSize,
-                    progress: new Progress<ChunkFileProgress>(p =>
-                    {
-                        if (verbose)
-                        {
-                            Console.Write(".");
-                        }
-                    }),
-                    cancellationToken: cancellationToken);
-            }
+                        Console.Write(".");
+                    }
+                }),
+                cancellationToken: cancellationToken);
         }
 
-        [NotNull, ItemCanBeNull]
-        public static async Task<FileManifest> ChunkFileViaOutputDirectoryFromPreHash(
-            [NotNull] FileInfo sourceFile,
-            [NotNull] FileInfo manifestFile,
-            [NotNull] DirectoryInfo outputDirectory,
+        public static async Task<FileManifest?> ChunkFileViaOutputDirectoryFromPreHash(
+            FileInfo sourceFile,
+            FileInfo manifestFile,
+            DirectoryInfo outputDirectory,
             bool overwrite = false,
             bool verbose = false,
             bool verify = false,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            if (sourceFile == null)
-                throw new ArgumentNullException(nameof(sourceFile));
+            ArgumentNullException.ThrowIfNull(sourceFile);
             if (!sourceFile.Exists)
                 throw new FileNotFoundException("Source file does not exist", sourceFile.FullName);
-            if (manifestFile == null)
-                throw new ArgumentNullException(nameof(manifestFile));
+            ArgumentNullException.ThrowIfNull(manifestFile);
             if (!manifestFile.Exists)
                 throw new FileNotFoundException("Manifest file does not exist", manifestFile.FullName);
-            if (outputDirectory == null)
-                throw new ArgumentNullException(nameof(outputDirectory));
+            ArgumentNullException.ThrowIfNull(outputDirectory);
 
-            using (var fs = new FileStream(sourceFile.FullName, FileMode.Open, FileAccess.Read))
-            using (var bs = new BufferedStream(fs, 1024 * 1024 * 16))
-            {
-                return await ChunkFile(
-                    bs,
-                    manifestFile,
-                    async (ha, ba, ordering) =>
-                    {
-                        Debug.Assert(ha != null, "ha != null");
-                        Debug.Assert(ba != null, "ba != null");
-                        Debug.Assert(sourceFile.Name != null, "sourceFile.Name != null");
-                        return await Block.CreateViaOutputDirectory(ha, ba, outputDirectory, sourceFile.Name, overwrite, verbose, verify);
-                    },
-                    verbose,
-                    cancellationToken);
-            }
+            using var fs = new FileStream(sourceFile.FullName, FileMode.Open, FileAccess.Read);
+            using var bs = new BufferedStream(fs, 1024 * 1024 * 16);
+
+            return await ChunkFile(
+                bs,
+                manifestFile,
+                async (ha, ba, ordering) =>
+                {
+                    Debug.Assert(ha != null, "ha != null");
+                    Debug.Assert(ba != null, "ba != null");
+                    Debug.Assert(sourceFile.Name != null, "sourceFile.Name != null");
+                    return await Block.CreateViaOutputDirectory(ha, ba, outputDirectory, sourceFile.Name, overwrite, verbose, verify);
+                },
+                verbose,
+                cancellationToken);
         }
 
-        [Pure, NotNull]
         public static IEnumerable<int> GetChunkLengths(long fileSizeBytes, int? chunkSize)
         {
             var random = new Random(Environment.TickCount);
@@ -216,20 +198,13 @@ namespace Mystiko.IO
             while (chunkElapsed < fileSizeBytes);
         }
 
-        [NotNull]
-        public static async Task<bool> UnchunkFileViaOutputDirectory([NotNull] FileInfo manifestFile, [NotNull] FileInfo saveFile, bool overwrite, bool verbose)
+        public static async Task<bool> UnchunkFileViaOutputDirectory(FileInfo manifestFile, FileInfo saveFile, bool overwrite, bool verbose)
         {
-            if (manifestFile == null)
-            {
-                throw new ArgumentNullException(nameof(manifestFile));
-            }
+            ArgumentNullException.ThrowIfNull(manifestFile);
 
-            if (saveFile == null)
-            {
-                throw new ArgumentNullException(nameof(saveFile));
-            }
+            ArgumentNullException.ThrowIfNull(saveFile);
 
-            FileManifest manifest;
+            FileManifest? manifest;
             using (var fs = new FileStream(manifestFile.FullName, FileMode.Open, FileAccess.Read, FileShare.Write))
             using (var sr = new StreamReader(fs))
             {
@@ -243,27 +218,18 @@ namespace Mystiko.IO
             return await UnchunkFileViaOutputDirectory(manifest, manifestFile.DirectoryName, saveFile, overwrite, verbose);
         }
 
-        public static async Task<bool> UnchunkFileViaOutputDirectory([NotNull] FileManifest manifest, [NotNull] string inputDirectoryPath, [NotNull] FileInfo saveFile, bool overwrite, bool verbose)
+        public static async Task<bool> UnchunkFileViaOutputDirectory(FileManifest manifest, string inputDirectoryPath, FileInfo saveFile, bool overwrite, bool verbose)
         {
-            if (manifest == null)
-            {
-                throw new ArgumentNullException(nameof(manifest));
-            }
+            ArgumentNullException.ThrowIfNull(manifest);
 
-            if (inputDirectoryPath == null)
-            {
-                throw new ArgumentNullException(nameof(inputDirectoryPath));
-            }
+            ArgumentNullException.ThrowIfNull(inputDirectoryPath);
 
             if (!Directory.Exists(inputDirectoryPath))
             {
                 throw new DirectoryNotFoundException($"Unable to find the directory {inputDirectoryPath}");
             }
 
-            if (saveFile == null)
-            {
-                throw new ArgumentNullException(nameof(saveFile));
-            }
+            ArgumentNullException.ThrowIfNull(saveFile);
 
             var inputDirectory = new DirectoryInfo(inputDirectoryPath);
             var fileInfoList = new List<FileInfo>();
@@ -274,7 +240,7 @@ namespace Mystiko.IO
                 if (manifest.BlockHashes.Any(bh =>
                 {
                     Debug.Assert(bh != null, "bh != null");
-                    return file.IndexOf($"{manifest.Name}.{bh.Substring(0, 8)}", StringComparison.OrdinalIgnoreCase) > -1;
+                    return file.IndexOf($"{manifest.Name}.{bh[..8]}", StringComparison.OrdinalIgnoreCase) > -1;
                 }))
                     fileInfoList.Add(new FileInfo(file));
             }
@@ -282,12 +248,9 @@ namespace Mystiko.IO
             return await UnchunkFile(manifest, fileInfoList, saveFile, overwrite, verbose);
         }
 
-        public static void DeleteChunksInOutputDirectory([NotNull] FileManifest manifest, [NotNull] string inputDirectoryPath)
+        public static void DeleteChunksInOutputDirectory(FileManifest manifest, string inputDirectoryPath)
         {
-            if (manifest == null)
-            {
-                throw new ArgumentNullException(nameof(manifest));
-            }
+            ArgumentNullException.ThrowIfNull(manifest);
 
             if (string.IsNullOrWhiteSpace(inputDirectoryPath))
             {
@@ -301,33 +264,24 @@ namespace Mystiko.IO
                 if (manifest.BlockHashes.Any(bh =>
                 {
                     Debug.Assert(bh != null, "bh != null");
-                    return file.IndexOf($"{manifest.Name}.{bh.Substring(0, 8)}", StringComparison.OrdinalIgnoreCase) > -1;
+                    return file.IndexOf($"{manifest.Name}.{bh[..8]}", StringComparison.OrdinalIgnoreCase) > -1;
                 }))
                     File.Delete(file);
             }
         }
 
-        private static async Task<bool> UnchunkFile([NotNull] FileManifest manifest, [NotNull] ICollection<FileInfo> fileBlocks, [NotNull] FileInfo saveFile, bool overwrite, bool verbose)
+        private static async Task<bool> UnchunkFile(FileManifest manifest, ICollection<FileInfo> fileBlocks, FileInfo saveFile, bool overwrite, bool verbose)
         {
-            if (manifest == null)
-            {
-                throw new ArgumentNullException(nameof(manifest));
-            }
+            ArgumentNullException.ThrowIfNull(manifest);
 
-            if (fileBlocks == null)
-            {
-                throw new ArgumentNullException(nameof(fileBlocks));
-            }
+            ArgumentNullException.ThrowIfNull(fileBlocks);
 
             if (fileBlocks.Count == 0)
             {
                 throw new ArgumentException("No file blocks were specified; an empty collection was provided", nameof(fileBlocks));
             }
 
-            if (saveFile == null)
-            {
-                throw new ArgumentNullException(nameof(saveFile));
-            }
+            ArgumentNullException.ThrowIfNull(saveFile);
 
             if (saveFile.Exists)
             {
@@ -411,7 +365,7 @@ namespace Mystiko.IO
                                             perturbed.hash
                                         };
                     var ciiChunk = chunks.ElementAt(cii);
-                    xorChunks.AddRange(chunks.Except(new[] { ciiChunk }).Select(a => a.Value.Last64Bytes));
+                    xorChunks.AddRange(chunks.Except([ciiChunk]).Select(a => a.Value.Last64Bytes));
                     var xor = xorChunks.Aggregate(ExclusiveOr);
                     Debug.Assert(xor != null, "xor != null");
                     Debug.Assert(ciiChunk.Value != null, "ciiChunk.Value != null");
@@ -419,7 +373,7 @@ namespace Mystiko.IO
                     {
                         if (verbose)
                         {
-                            Console.WriteLine($"Position {p + 1} is chunk hash {ByteArrayToString(ciiChunk.Value.FullHash).Substring(0, 8)}... which is mapped in manifest as {manifest.BlockHashes[perturbed.position].Substring(0, 8)}...");
+                            Console.WriteLine($"Position {p + 1} is chunk hash {ByteArrayToString(ciiChunk.Value.FullHash)[..8]}... which is mapped in manifest as {manifest.BlockHashes[perturbed.position][..8]}...");
                         }
 
                         manifest.BlockHashes[perturbed.position] = ByteArrayToString(ciiChunk.Value.FullHash);
@@ -433,7 +387,7 @@ namespace Mystiko.IO
                     throw new InvalidOperationException("Could not locate!");
             }
 
-            if (!source.Any())
+            if (source.Length == 0)
             {
                 Console.WriteLine($"Failed to recover encryption key!  Located {source.Count(s => s != null)} of {manifest.BlockHashes.Length} chunks");
                 return false;
@@ -444,84 +398,65 @@ namespace Mystiko.IO
                 Console.WriteLine($"Recovered Encryption Key: {ByteArrayToString(encKey)}");
 
             // Setup IV
-            byte[] iv;
-            using (var sha = SHA512.Create())
+            var iv = SHA512.HashData(encKey).Take(16).ToArray();
+            using var fsSave = new FileStream(saveFile.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            foreach (var block in source)
             {
-                iv = sha.ComputeHash(encKey).Take(16).ToArray();
-            }
+                using var aes = Aes.Create();
+                aes.KeySize = 256;
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.Zeros;
 
-            using (var fsSave = new FileStream(saveFile.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                foreach (var block in source)
+                using var decryptor = aes.CreateDecryptor(encKey, iv);
+                using var fsBlock = new FileStream(block.Path, FileMode.Open, FileAccess.Read, FileShare.None);
+                using var bsBlock = new BufferedStream(fsBlock);
+                using var csBlock = new CryptoStream(bsBlock, decryptor, CryptoStreamMode.Read);
+
+                if (verbose)
                 {
-                    using (var aes = Aes.Create())
-                    {
-                        aes.KeySize = 256;
-                        aes.Mode = CipherMode.CBC;
-                        aes.Padding = PaddingMode.Zeros;
+                    Console.Write($"\r\nDecrypting Block {block.Ordering}: {Path.GetFileName(block.Path)}");
+                }
 
-                        using (var decryptor = aes.CreateDecryptor(encKey, iv))
+                var buffer = new byte[aes.BlockSize * 1024];
+                var totalDecryptedRead = 0;
+                int decryptReadActual;
+                do
+                {
+                    var decryptReadMax = Math.Min(buffer.Length, (int)fsBlock.Length - totalDecryptedRead);
+                    if (decryptReadMax != 0)
+                    {
+                        if ((uint)(decryptReadMax % 128) > 0U)
+                            decryptReadMax += 128 - (decryptReadMax % 128);
+                        if ((int)fsBlock.Length - totalDecryptedRead < buffer.Length)
+                            decryptReadMax -= 4;
+                        decryptReadActual = await csBlock.ReadAsync(buffer.AsMemory(0, decryptReadMax));
+                        totalDecryptedRead += decryptReadActual;
+                        if (verbose)
                         {
-                            using (var fsBlock = new FileStream(block.Path, FileMode.Open, FileAccess.Read, FileShare.None))
-                            using (var bsBlock = new BufferedStream(fsBlock))
-                            using (var csBlock = new CryptoStream(bsBlock, decryptor, CryptoStreamMode.Read))
-                            {
-                                if (verbose)
-                                {
-                                    Console.Write($"\r\nDecrypting Block {block.Ordering}: {Path.GetFileName(block.Path)}");
-                                }
-
-                                var buffer = new byte[aes.BlockSize * 1024];
-                                var totalDecryptedRead = 0;
-                                int decryptReadActual;
-                                do
-                                {
-                                    var decryptReadMax = Math.Min(buffer.Length, (int)fsBlock.Length - totalDecryptedRead);
-                                    if (decryptReadMax != 0)
-                                    {
-                                        if ((uint)(decryptReadMax % 128) > 0U)
-                                            decryptReadMax += 128 - (decryptReadMax % 128);
-                                        if ((int)fsBlock.Length - totalDecryptedRead < buffer.Length)
-                                            decryptReadMax -= 4;
-                                        decryptReadActual = await csBlock.ReadAsync(buffer, 0, decryptReadMax);
-                                        totalDecryptedRead += decryptReadActual;
-                                        if (verbose)
-                                        {
-                                            Console.Write(".");
-                                        }
-
-                                        await fsSave.WriteAsync(buffer, 0, decryptReadActual);
-                                    }
-                                    else
-                                        break;
-                                }
-                                while (decryptReadActual > 0);
-                            }
+                            Console.Write(".");
                         }
-                    }
 
-                    if (verbose)
-                    {
-                        Console.WriteLine();
+                        await fsSave.WriteAsync(buffer.AsMemory(0, decryptReadActual));
                     }
+                    else
+                        break;
+                }
+                while (decryptReadActual > 0);
+
+                if (verbose)
+                {
+                    Console.WriteLine();
                 }
             }
 
             return true;
         }
 
-        [NotNull, Pure]
-        public static byte[] ExclusiveOr([NotNull] byte[] arr1, [NotNull] byte[] arr2)
+        public static byte[] ExclusiveOr(byte[] arr1, byte[] arr2)
         {
-            if (arr1 == null)
-            {
-                throw new ArgumentNullException(nameof(arr1));
-            }
+            ArgumentNullException.ThrowIfNull(arr1);
 
-            if (arr2 == null)
-            {
-                throw new ArgumentNullException(nameof(arr2));
-            }
+            ArgumentNullException.ThrowIfNull(arr2);
 
             if (arr1.Length != arr2.Length)
             {
@@ -537,52 +472,36 @@ namespace Mystiko.IO
             return numArray;
         }
 
-        [NotNull, Pure]
-        public static byte[] StringToByteArray([CanBeNull] string hex)
+        public static byte[] StringToByteArray(string? hex)
         {
-            return hex == null ? new byte[0] : Enumerable.Range(0, hex.Length).Where(x => x % 2 == 0).Select(x => Convert.ToByte(hex.Substring(x, 2), 16)).ToArray();
+            return hex == null ? [] : Enumerable.Range(0, hex.Length).Where(x => x % 2 == 0).Select(x => Convert.ToByte(hex.Substring(x, 2), 16)).ToArray();
         }
 
-        [NotNull, Pure]
-        public static string ByteArrayToString([NotNull] byte[] bytes)
+        public static string ByteArrayToString(byte[] bytes)
         {
-            if (bytes == null)
-            {
-                throw new ArgumentNullException(nameof(bytes));
-            }
-
+            ArgumentNullException.ThrowIfNull(bytes);
             return BitConverter.ToString(bytes).Replace("-", string.Empty);
         }
 
-        [NotNull, ItemNotNull]
         private static async Task<FileManifest> ChunkFile(
-    [NotNull] BufferedStream fileStream,
-    [NotNull] FileInfo fileInfo,
-    [NotNull] Func<HashAlgorithm, byte[], string, uint, Task<Block>> blockCreatorTask,
-    int? chunkSize = null,
-    bool verbose = false,
-    Progress<ChunkFileProgress> progress = null,
-    CancellationToken cancellationToken = default(CancellationToken))
+            BufferedStream fileStream,
+            FileInfo fileInfo,
+            Func<HashAlgorithm, byte[], string, uint, Task<Block>> blockCreatorTask,
+            int? chunkSize = null,
+            bool verbose = false,
+            Progress<ChunkFileProgress>? progress = null,
+            CancellationToken cancellationToken = default)
         {
-            if (fileStream == null)
-            {
-                throw new ArgumentNullException(nameof(fileStream));
-            }
+            ArgumentNullException.ThrowIfNull(fileStream);
 
             if (!fileStream.CanRead)
             {
                 throw new InvalidOperationException("File stream does not support reads in its current state");
             }
 
-            if (fileInfo == null)
-            {
-                throw new ArgumentNullException(nameof(fileInfo));
-            }
+            ArgumentNullException.ThrowIfNull(fileInfo);
 
-            if (blockCreatorTask == null)
-            {
-                throw new ArgumentNullException(nameof(blockCreatorTask));
-            }
+            ArgumentNullException.ThrowIfNull(blockCreatorTask);
 
             var chunkLengths = new ConcurrentDictionary<int, int>();
             var source = new List<Block>();
@@ -609,7 +528,7 @@ namespace Mystiko.IO
                     foreach (var chunkLength in GetChunkLengths(fileStream.Length, chunkSize))
                     {
                         var chunkBuffer = new byte[chunkLength];
-                        await fileStream.ReadAsync(chunkBuffer, 0, chunkLength, cancellationToken);
+                        await fileStream.ReadAsync(chunkBuffer.AsMemory(0, chunkLength), cancellationToken);
                         dataItems.Add(new Tuple<int, byte[]>(i, chunkBuffer), cancellationToken);
                         if (verbose)
                         {
@@ -633,46 +552,45 @@ namespace Mystiko.IO
             var consumerFunction = new Action(
                 () =>
                 {
-                    using (var sha = SHA512.Create())
+                    while (!dataItems.IsCompleted)
                     {
-                        while (!dataItems.IsCompleted)
+                        Tuple<int, byte[]> dataItem;
+                        try
                         {
-                            Tuple<int, byte[]> dataItem;
-                            try
-                            {
-                                dataItem = dataItems.Take(cancellationToken);
-                            }
-                            catch (InvalidOperationException)
-                            {
-                                // Queue empty.
-                                Console.WriteLine("Queue empty!");
-                                return;
-                            }
-
-                            Debug.Assert(dataItem != null, "dataItem != null");
-                            var i = dataItem.Item1;
-                            var chunkBuffer = dataItem.Item2;
-                            var chunkHash = sha.ComputeHash(chunkBuffer, 0, chunkBuffer.Length).Take(32).ToArray();
-
-                            while (!chunkHashes.TryAdd(i, chunkHash))
-                            {
-                                if (verbose)
-                                {
-                                    Console.WriteLine("Unable to add chunk...");
-                                }
-                            }
-
-                            (progress as IProgress<ChunkFileProgress>)?.Report(new ChunkFileProgress { ChunkIndex = i });
+                            dataItem = dataItems.Take(cancellationToken);
                         }
+                        catch (InvalidOperationException)
+                        {
+                            // Queue empty.
+                            Console.WriteLine("Queue empty!");
+                            return;
+                        }
+
+                        Debug.Assert(dataItem != null, "dataItem != null");
+                        var i = dataItem.Item1;
+                        var chunkBuffer = dataItem.Item2;
+                        var chunkHash = SHA512.HashData(chunkBuffer.AsSpan(0, chunkBuffer.Length)).Take(32).ToArray();
+
+                        while (!chunkHashes.TryAdd(i, chunkHash))
+                        {
+                            if (verbose)
+                            {
+                                Console.WriteLine("Unable to add chunk...");
+                            }
+                        }
+
+                        (progress as IProgress<ChunkFileProgress>)?.Report(new ChunkFileProgress { ChunkIndex = i });
                     }
                 });
 
-            Task.WaitAll(
-                producerTask,
-                Task.Run(consumerFunction, cancellationToken),
-                Task.Run(consumerFunction, cancellationToken),
-                Task.Run(consumerFunction, cancellationToken),
-                Task.Run(consumerFunction, cancellationToken));
+            Task.WaitAll([
+                    producerTask,
+                    Task.Run(consumerFunction, cancellationToken),
+                    Task.Run(consumerFunction, cancellationToken),
+                    Task.Run(consumerFunction, cancellationToken),
+                    Task.Run(consumerFunction, cancellationToken)
+                ],
+                cancellationToken: cancellationToken);
 
             if (verbose)
             {
@@ -689,69 +607,62 @@ namespace Mystiko.IO
                 aes.Padding = PaddingMode.Zeros;
 
                 // Setup IV
-                using (var sha = SHA512.Create())
-                {
+                using var sha = SHA512.Create();
                     var iv = sha.ComputeHash(encKey).Take(16).ToArray();
-                    using (var encryptor = aes.CreateEncryptor(encKey, iv))
+                    var encryptor = aes.CreateEncryptor(encKey, iv);
+
+                    if (verbose)
+                    {
+                        Console.WriteLine("Encrypting blocks");
+                    }
+
+                    var i = 0;
+                foreach (var blockLength in chunkLengths)
+                {
+                    if (verbose)
+                        Console.WriteLine($"Encrypting block {i + 1} of {chunkLengths.Count} ({(double)i / chunkLengths.Count:P0})");
+                    i++;
+
+                    var fileBytes = new byte[blockLength.Value];
+                    await fileStream.ReadAsync(fileBytes.AsMemory(0, blockLength.Value), cancellationToken);
+
+                    using var msBlock = new MemoryStream(blockLength.Value);
+                    using var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write);
+
+                    csBlock.Write(fileBytes, 0, fileBytes.Length);
+                    byte[] encryptedBlockBytes;
+                    if (blockLength.Key == chunkLengths.Count - 1)
+                    {
+                        csBlock.FlushFinalBlock();
+                        encryptedBlockBytes = new byte[msBlock.Length];
+                    }
+                    else
+                    {
+                        encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
+                    }
+
+                    msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
+
+                    var encryptedChunkHash = sha.ComputeHash(encryptedBlockBytes, 0, encryptedBlockBytes.Length);
+                    Debug.Assert(encryptedChunkHash != null, "encryptedChunkHash != null");
+                    var chunkFileName = $"{fileInfo.Name}.temp.{ByteArrayToString(encryptedChunkHash)[..8]}";
+
+                    var block = await blockCreatorTask.Invoke(sha, encryptedBlockBytes, chunkFileName, Convert.ToUInt32(blockLength.Key))
+                        ?? throw new InvalidOperationException("Block creator returned 'null'");
+                    source.Add(block);
+
+                    while (!chunkLast64Bytes.TryAdd(i, block.Last64Bytes))
                     {
                         if (verbose)
                         {
-                            Console.WriteLine("Encrypting blocks");
+                            Console.WriteLine("Unable to add chunk suffix...");
                         }
+                    }
 
-                        var i = 0;
-                        foreach (var blockLength in chunkLengths)
-                        {
-                            if (verbose)
-                                Console.WriteLine($"Encrypting block {i + 1} of {chunkLengths.Count} ({(double)i / chunkLengths.Count:P0})");
-                            i++;
-
-                            var fileBytes = new byte[blockLength.Value];
-                            await fileStream.ReadAsync(fileBytes, 0, blockLength.Value, cancellationToken);
-
-                            using (var msBlock = new MemoryStream(blockLength.Value))
-                            using (var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write))
-                            {
-                                csBlock.Write(fileBytes, 0, fileBytes.Length);
-                                byte[] encryptedBlockBytes;
-                                if (blockLength.Key == chunkLengths.Count - 1)
-                                {
-                                    csBlock.FlushFinalBlock();
-                                    encryptedBlockBytes = new byte[msBlock.Length];
-                                }
-                                else
-                                {
-                                    encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
-                                }
-
-                                msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
-
-                                var encryptedChunkHash = sha.ComputeHash(encryptedBlockBytes, 0, encryptedBlockBytes.Length);
-                                Debug.Assert(encryptedChunkHash != null, "encryptedChunkHash != null");
-                                var chunkFileName = $"{fileInfo.Name}.temp.{ByteArrayToString(encryptedChunkHash).Substring(0, 8)}";
-
-                                var block = await blockCreatorTask.Invoke(sha, encryptedBlockBytes, chunkFileName, Convert.ToUInt32(blockLength.Key));
-                                if (block == null)
-                                {
-                                    throw new InvalidOperationException("Block creator returned 'null'");
-                                }
-                                source.Add(block);
-
-                                while (!chunkLast64Bytes.TryAdd(i, block.Last64Bytes))
-                                {
-                                    if (verbose)
-                                    {
-                                        Console.WriteLine("Unable to add chunk suffix...");
-                                    }
-                                }
-
-                                if (verbose)
-                                {
-                                    Console.WriteLine(block.Path == null ? $" {blockLength.Key} {Path.GetFileName(block.Path)} ({encryptedBlockBytes.Length:N0} bytes)" : $" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
-                                    Console.WriteLine($" \\-Chunk Hash:{ByteArrayToString(block.FullHash)}");
-                                }
-                            }
-                        }
+                    if (verbose)
+                    {
+                        Console.WriteLine(block.Path == null ? $" {blockLength.Key} {Path.GetFileName(block.Path)} ({encryptedBlockBytes.Length:N0} bytes)" : $" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
+                        Console.WriteLine($" \\-Chunk Hash:{ByteArrayToString(block.FullHash)}");
                     }
                 }
             }
@@ -797,18 +708,19 @@ namespace Mystiko.IO
                 // Perturb the hash
                 if (verbose)
                 {
-                    Console.WriteLine($"Perturbing chunk hash {ByteArrayToString(source[i].FullHash).Substring(0, 8)}... to {ByteArrayToString(manifestChunkHash).Substring(0, 8)}...");
+                    Console.WriteLine($"Perturbing chunk hash {ByteArrayToString(source[i].FullHash)[..8]}... to {ByteArrayToString(manifestChunkHash)[..8]}...");
                 }
 
                 source[i].FullHash = manifestChunkHash;
 
                 // Rename the file into the perturbed hash format, if this is not a metadata-only chunking
-                if (source[i].Path != null)
+                var sourcePath = source[i].Path;
+                if (sourcePath != null)
                 {
-                    var chunkFileInfo = new FileInfo(source[i].Path);
+                    var chunkFileInfo = new FileInfo(sourcePath);
                     Debug.Assert(chunkFileInfo.DirectoryName != null, "chunkFileInfo.DirectoryName != null");
-                    var newChunkFileName = $"{chunkFileInfo.Name.Split(new[] { ".temp" }, StringSplitOptions.None)[0]}.{ByteArrayToString(manifestChunkHash).Substring(0, 8)}";
-                    File.Move(source[i].Path, Path.Combine(chunkFileInfo.DirectoryName, newChunkFileName));
+                    var newChunkFileName = $"{chunkFileInfo.Name.Split(separator, StringSplitOptions.None)[0]}.{ByteArrayToString(manifestChunkHash)[..8]}";
+                    File.Move(sourcePath, Path.Combine(chunkFileInfo.DirectoryName, newChunkFileName));
                 }
             }
 
@@ -820,25 +732,18 @@ namespace Mystiko.IO
             };
         }
 
-        [NotNull, ItemCanBeNull]
-        private static async Task<FileManifest> ChunkFile(
-           [NotNull] BufferedStream fileStream,
-           [NotNull] FileInfo localShareFileManifest,
-           [NotNull] Func<HashAlgorithm, byte[], uint, Task<Block>> blockCreatorTask,
+        private static async Task<FileManifest?> ChunkFile(
+           BufferedStream fileStream,
+           FileInfo localShareFileManifest,
+           Func<HashAlgorithm, byte[], uint, Task<Block>> blockCreatorTask,
            bool verbose = false,
-           CancellationToken cancellationToken = default(CancellationToken))
+           CancellationToken cancellationToken = default)
         {
-            if (localShareFileManifest == null)
-            {
-                throw new ArgumentNullException(nameof(localShareFileManifest));
-            }
+            ArgumentNullException.ThrowIfNull(localShareFileManifest);
 
-            if (blockCreatorTask == null)
-            {
-                throw new ArgumentNullException(nameof(blockCreatorTask));
-            }
+            ArgumentNullException.ThrowIfNull(blockCreatorTask);
 
-            LocalShareFileManifest localManifest;
+            LocalShareFileManifest? localManifest;
             using (var fs = new FileStream(localShareFileManifest.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var sr = new StreamReader(fs))
             {
@@ -848,7 +753,7 @@ namespace Mystiko.IO
             Debug.Assert(localManifest != null, "manifest != null");
             if (localManifest.FileManifest == null)
             {
-                LocalDirectoryManifest localDirectoryManifest;
+                LocalDirectoryManifest? localDirectoryManifest;
 
                 using (var fs = new FileStream(localShareFileManifest.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var sr = new StreamReader(fs))
@@ -889,54 +794,48 @@ namespace Mystiko.IO
                 aes.Padding = PaddingMode.Zeros;
 
                 // Setup IV
-                using (var sha = SHA512.Create())
-                {
+                using var sha = SHA512.Create();
                     var iv = sha.ComputeHash(encKey).Take(16).ToArray();
-                    using (var encryptor = aes.CreateEncryptor(encKey, iv))
+                    using var encryptor = aes.CreateEncryptor(encKey, iv);
+
+                    if (verbose)
+                        Console.WriteLine("Encrypting blocks");
+
+                    var i = 0;
+                foreach (var blockLength in chunkLengths)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return null;
+
+                    if (verbose)
+                        Console.WriteLine($"Encrypting block {i + 1} of {chunkLengths.Count} ({(double)i / chunkLengths.Count:P0})");
+                    i++;
+
+                    var fileBytes = new byte[blockLength.Value];
+                    await fileStream.ReadAsync(fileBytes.AsMemory(0, blockLength.Value), cancellationToken);
+
+                    using var msBlock = new MemoryStream(blockLength.Value);
+                    using var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write);
+
+                    csBlock.Write(fileBytes, 0, fileBytes.Length);
+                    byte[] encryptedBlockBytes;
+                    if (blockLength.Key == chunkLengths.Count - 1)
                     {
-                        if (verbose)
-                            Console.WriteLine("Encrypting blocks");
+                        csBlock.FlushFinalBlock();
+                        encryptedBlockBytes = new byte[msBlock.Length];
+                    }
+                    else
+                    {
+                        encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
+                    }
 
-                        var i = 0;
-                        foreach (var blockLength in chunkLengths)
-                        {
-                            if (cancellationToken.IsCancellationRequested)
-                                return null;
-
-                            if (verbose)
-                                Console.WriteLine($"Encrypting block {i + 1} of {chunkLengths.Count} ({(double)i / chunkLengths.Count:P0})");
-                            i++;
-
-                            var fileBytes = new byte[blockLength.Value];
-                            await fileStream.ReadAsync(fileBytes, 0, blockLength.Value, cancellationToken);
-
-                            using (var msBlock = new MemoryStream(blockLength.Value))
-                            using (var csBlock = new CryptoStream(msBlock, encryptor, CryptoStreamMode.Write))
-                            {
-                                csBlock.Write(fileBytes, 0, fileBytes.Length);
-                                byte[] encryptedBlockBytes;
-                                if (blockLength.Key == chunkLengths.Count - 1)
-                                {
-                                    csBlock.FlushFinalBlock();
-                                    encryptedBlockBytes = new byte[msBlock.Length];
-                                }
-                                else
-                                {
-                                    encryptedBlockBytes = new byte[blockLength.Value + Math.Max(0L, msBlock.Length % 128L - blockLength.Value % 128)];
-                                }
-
-                                msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
-                                var block = await blockCreatorTask.Invoke(sha, encryptedBlockBytes, Convert.ToUInt32(blockLength.Key));
-                                if (block == null)
-                                    throw new InvalidOperationException("Block creator returned 'null'");
-
-                                if (verbose)
-                                {
-                                    Console.WriteLine(block.Path == null ? $" {blockLength.Key} {Path.GetFileName(block.Path)} ({encryptedBlockBytes.Length:N0} bytes)" : $" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
-                                    Console.WriteLine($" \\-{ByteArrayToString(block.FullHash)}");
-                                }
-                            }
-                        }
+                    msBlock.ToArray().CopyTo(encryptedBlockBytes, 0);
+                    var block = await blockCreatorTask.Invoke(sha, encryptedBlockBytes, Convert.ToUInt32(blockLength.Key))
+                        ?? throw new InvalidOperationException("Block creator returned 'null'");
+                    if (verbose)
+                    {
+                        Console.WriteLine(block.Path == null ? $" {blockLength.Key} {Path.GetFileName(block.Path)} ({encryptedBlockBytes.Length:N0} bytes)" : $" {blockLength.Key} {Path.GetFileName(block.Path)} ({new FileInfo(block.Path).Length:N0} bytes)");
+                        Console.WriteLine($" \\-{ByteArrayToString(block.FullHash)}");
                     }
                 }
             }

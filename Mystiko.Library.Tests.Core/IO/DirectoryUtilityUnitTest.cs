@@ -25,10 +25,10 @@ namespace Mystiko.Library.Tests.IO
         public async Task PreHashDirectory()
         {
             // Encrypt
-            var localDirectory = @"C:\Users\Smcelroy\Documents\SpiderOak Hive\Pictures\Texas";
+            var localDirectory = @"C:\Users\Sean\Downloads\DCIM\200DOC";
             if (!Directory.Exists(localDirectory))
             {
-                Assert.True(false, $"Unable to find folder {localDirectory}");
+                Assert.Fail($"Unable to find folder {localDirectory}");
             }
 
             var localManifest = await DirectoryUtility.PreHashDirectory(localDirectory, verbose: true);

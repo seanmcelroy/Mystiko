@@ -21,8 +21,6 @@ namespace Mystiko.Net
 
     using Cryptography;
 
-    using JetBrains.Annotations;
-
     using log4net;
 
     using Messages;
@@ -35,8 +33,6 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
-        [NotNull]
-        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TcpPeerDiscoveryChannel));
 
         /// <summary>
@@ -47,13 +43,11 @@ namespace Mystiko.Net
         /// <summary>
         /// The identity of the server node
         /// </summary>
-        [NotNull]
         private readonly ServerNodeIdentity _serverIdentity;
 
         /// <summary>
         /// The IP multicast address used for local peer discovery broadcasts.  By default, this is 224.0.23.191
         /// </summary>
-        [NotNull]
         private readonly IPAddress _multicastGroupAddress;
 
         /// <summary>
@@ -64,32 +58,27 @@ namespace Mystiko.Net
         /// <summary>
         /// The network client for sending and receiving local peer discovery broadcasts
         /// </summary>
-        [NotNull]
         private readonly UdpClient _multicastUdpClient;
 
         /// <summary>
         /// The temporary storage queue of incoming peer discovery broadcast traffic
         /// </summary>
-        [NotNull]
-        private readonly Queue<byte> _multicastReceiveQueue = new Queue<byte>();
+        private readonly Queue<byte> _multicastReceiveQueue = new();
 
         /// <summary>
         /// The temporary storage queue of incoming peer discovery broadcast traffic
         /// </summary>
-        [NotNull]
-        private readonly object _multicastReceiveQueueLock = new object();
+        private readonly object _multicastReceiveQueueLock = new();
 
         /// <summary>
         /// The task that listens for peer discovery broadcast announcements and remembers them for future peer connectivity
         /// </summary>
-        [CanBeNull]
-        private Task _multicastReceiveTask;
+        private Task? _multicastReceiveTask;
 
         /// <summary>
         /// The task that broadcasts peer discovery broadcast about this node to other peers that may be listening on the multicast group
         /// </summary>
-        [CanBeNull]
-        private Task _multicastBroadcastTask;
+        private Task? _multicastBroadcastTask;
 
         /// <summary>
         /// A value indicating whether this object has been disposed
@@ -115,8 +104,8 @@ namespace Mystiko.Net
         /// The port used for local peer discovery broadcasts.  By default this is 5110
         /// </param>
         public TcpPeerDiscoveryChannel(
-            [NotNull] ServerNodeIdentity serverIdentity,
-            [CanBeNull] IPAddress multicastGroupAddress = null,
+            ServerNodeIdentity serverIdentity,
+            IPAddress? multicastGroupAddress = null,
             int multicastReceivePort = 5110)
         {
             this._serverIdentity = serverIdentity ?? throw new ArgumentNullException(nameof(serverIdentity));
@@ -135,27 +124,23 @@ namespace Mystiko.Net
         /// <summary>
         /// Gets the public Internet IP address for this node as it would appear to remote nodes in other networks
         /// </summary>
-        [CanBeNull]
-        public IPAddress PublicIPAddress { get; private set; }
+        public IPAddress? PublicIPAddress { get; private set; }
 
         /// <summary>
         /// Gets the public TCP port number for this node as it would appear to remote nodes in other networks
         /// </summary>
-        [CanBeNull]
         public ushort? PublicPort { get; private set; }
 
         /// <summary>
         /// Gets a dictionary of peers discovered through this <see cref="TcpPeerDiscoveryChannel"/>, keyed by the composite hash of the
         /// node identity's components
         /// </summary>
-        [NotNull]
-        private Dictionary<string, DiscoveredPeer> DiscoveredPeers { get; } = new Dictionary<string, DiscoveredPeer>();
+        private Dictionary<string, DiscoveredPeer> DiscoveredPeers { get; } = [];
 
         /// <summary>
         /// Gets a list of handlers that receive notifications when peers are discovered
         /// </summary>
-        [NotNull]
-        private List<Action<DiscoveredPeer>> DiscoveredPeerHandlers { get; } = new List<Action<DiscoveredPeer>>();
+        private List<Action<DiscoveredPeer>> DiscoveredPeerHandlers { get; } = [];
 
         /// <summary>
         /// Starts the peer discovery process
@@ -167,7 +152,7 @@ namespace Mystiko.Net
         public async Task StartAsync(
             ushort localPort, 
             bool passive = false, 
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             this.PublicPort = localPort;
 
@@ -182,7 +167,7 @@ namespace Mystiko.Net
             {
                 if (!this.DisableLogging)
                 {
-                    Logger.Info($"Joining multicast group for peer discovery on {((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Address}:{((IPEndPoint)this._multicastUdpClient.Client.LocalEndPoint).Port}");
+                    Logger.Info($"Joining multicast group for peer discovery on {((IPEndPoint?)this._multicastUdpClient.Client.LocalEndPoint)?.Address}:{((IPEndPoint?)this._multicastUdpClient.Client.LocalEndPoint)?.Port}");
                 }
 
                 this._multicastUdpClient.JoinMulticastGroup(this._multicastGroupAddress);
@@ -296,26 +281,23 @@ namespace Mystiko.Net
 
             this._multicastBroadcastTask = new Task(async () =>
             {
-                using (var rng = RandomNumberGenerator.Create())
-                {
+                var rng = RandomNumberGenerator.Create();
                     Debug.Assert(rng != null, "rng != null");
-                    while (!cancellationToken.IsCancellationRequested)
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    Debug.Assert(this.PublicIPAddress != null, "this.PublicIPAddress != null");
+                    Debug.Assert(this.PublicPort != null, "this.PublicPort != null");
+                    Debug.Assert(this.PublicPort > 0, "this.PublicPort > 0");
+
+                    if (!this.DisableLogging)
                     {
-                        Debug.Assert(this.PublicIPAddress != null, "this.PublicIPAddress != null");
-                        Debug.Assert(this.PublicPort != null, "this.PublicPort != null");
-                        Debug.Assert(this.PublicPort > 0, "this.PublicPort > 0");
-
-                        if (!this.DisableLogging)
-                        {
-                            Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
-                        }
-
-                        await this.SendAsync(new PeerAnnounce(1, this.PublicIPAddress, this.PublicPort.Value, this._serverIdentity.DateEpoch, this._serverIdentity.PublicKeyX, this._serverIdentity.PublicKeyY, this._serverIdentity.Nonce));
-
-                        this._exponentialBackOffTick++;
-                        Thread.Sleep(500 * rng.GetNext(10, this._exponentialBackOffTick + 10)); // At most once every 5 seconds
-
+                        Logger.Debug($"{this._serverIdentity.GetCompositeHash().Substring(3, 8)}: Sending my peer announcement");
                     }
+
+                    await this.SendAsync(new PeerAnnounce(1, this.PublicIPAddress, this.PublicPort.Value, this._serverIdentity.DateEpoch, this._serverIdentity.PublicKeyX, this._serverIdentity.PublicKeyY, this._serverIdentity.Nonce));
+
+                    this._exponentialBackOffTick++;
+                    Thread.Sleep(500 * rng.GetNext(10, this._exponentialBackOffTick + 10)); // At most once every 5 seconds
                 }
             });
 
@@ -347,12 +329,9 @@ namespace Mystiko.Net
         /// Registers a handler that receives notifications when new peers are discovered
         /// </summary>
         /// <param name="handler">The handler for the newly discovered <see cref="DiscoveredPeer"/></param>
-        public void RegisterPeerDiscoveryHandler([NotNull] Action<DiscoveredPeer> handler)
+        public void RegisterPeerDiscoveryHandler(Action<DiscoveredPeer> handler)
         {
-            if (handler == null)
-            {
-                throw new ArgumentNullException(nameof(handler));
-            }
+            ArgumentNullException.ThrowIfNull(handler);
 
             this.DiscoveredPeerHandlers.Add(handler);
         }
@@ -362,7 +341,7 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A value indicating whether an address was located and set in the <see cref="PublicIPAddress"/> property</returns>
-        private async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default(CancellationToken))
+        private async Task<bool> FindPublicIPAddress(CancellationToken cancellationToken = default)
         {
             var publicIp = await NetUtility.FindPublicIPAddressAsync(cancellationToken);
             this.PublicIPAddress = publicIp;
@@ -375,17 +354,10 @@ namespace Mystiko.Net
         /// <param name="remoteEndpoint">The remote endpoint that sent the message</param>
         /// <param name="announcement">The message to handle</param>
         /// <returns>A value indicating whether a new peer was actually discovered</returns>
-        private bool HandlePeerAnnouncement([NotNull] IPEndPoint remoteEndpoint, [NotNull] PeerAnnounce announcement)
+        private bool HandlePeerAnnouncement(IPEndPoint remoteEndpoint, PeerAnnounce announcement)
         {
-            if (remoteEndpoint == null)
-            {
-                throw new ArgumentNullException(nameof(remoteEndpoint));
-            }
-
-            if (announcement == null)
-            {
-                throw new ArgumentNullException(nameof(announcement));
-            }
+            ArgumentNullException.ThrowIfNull(remoteEndpoint);
+            ArgumentNullException.ThrowIfNull(announcement);
 
             if (!announcement.DateEpoch.HasValue)
             {
@@ -469,13 +441,9 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="message">The message to send</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        [NotNull]
-        private async Task SendAsync([NotNull] IMessage message)
+        private async Task SendAsync(IMessage message)
         {
-            if (message == null)
-            {
-                throw new ArgumentNullException(nameof(message));
-            }
+            ArgumentNullException.ThrowIfNull(message);
 
             var endpoint = new IPEndPoint(this._multicastGroupAddress, this._multicastReceivePort);
             var payloadBytes = message.ToMessage();

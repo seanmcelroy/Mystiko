@@ -18,8 +18,6 @@ namespace Mystiko.PackageManager
 
     using IO;
 
-    using JetBrains.Annotations;
-
     using Newtonsoft.Json;
 
     using File = System.IO.File;
@@ -27,7 +25,6 @@ namespace Mystiko.PackageManager
     /// <summary>
     /// A basic command line utility for executing methods of the Mystiko library
     /// </summary>
-    // ReSharper disable once StyleCop.SA1650
     public static class Program
     {
         /// <summary>
@@ -102,12 +99,9 @@ namespace Mystiko.PackageManager
         /// Encrypts a file into a manifest and encrypted split files
         /// </summary>
         /// <param name="options">The command line options to configure the encryption process</param>
-        private static void Encrypt([NotNull] CommandLineOptions options)
+        private static void Encrypt(CommandLineOptions options)
         {
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
+            ArgumentNullException.ThrowIfNull(options);
 
             if (!File.Exists(options.SourcePath))
             {
@@ -157,12 +151,9 @@ namespace Mystiko.PackageManager
         /// Decrypts a file from a manifest and split files
         /// </summary>
         /// <param name="options">Command line options used for decrypting a file from its manifest and split files</param>
-        private static void Decrypt([NotNull] CommandLineOptions options)
+        private static void Decrypt(CommandLineOptions options)
         {
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
+            ArgumentNullException.ThrowIfNull(options);
 
             if (!File.Exists(options.ManifestFile))
             {
@@ -209,12 +200,9 @@ namespace Mystiko.PackageManager
         /// Pre-hashes a directory without actually creating encrypted split files
         /// </summary>
         /// <param name="options">Command line options used for identifying and pre-hashing the directory</param>
-        private static void Prehash([NotNull] CommandLineOptions options)
+        private static void Prehash(CommandLineOptions options)
         {
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
+            ArgumentNullException.ThrowIfNull(options);
 
             if (string.IsNullOrWhiteSpace(options.SourcePath))
             {
@@ -294,12 +282,9 @@ namespace Mystiko.PackageManager
             Console.WriteLine("Unable to locate directory: {0}", options.SourcePath);
         }
 
-        private static void ChunkFromPrehash([NotNull] CommandLineOptions options)
+        private static void ChunkFromPrehash(CommandLineOptions options)
         {
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
+            ArgumentNullException.ThrowIfNull(options);
 
             if (string.IsNullOrWhiteSpace(options.SourcePath))
             {

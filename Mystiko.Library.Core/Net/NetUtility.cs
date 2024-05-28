@@ -18,8 +18,6 @@ namespace Mystiko.Net
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using log4net;
 
     /// <summary>
@@ -30,19 +28,16 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
-        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NetUtility));
 
-        [CanBeNull]
-        private static IPAddress publicIpAddress;
+        private static IPAddress? publicIpAddress;
 
         /// <summary>
         /// Determines the public Internet IP address for this node as it would appear to remote nodes in other networks
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>The public Internet IP address for this node as it would appear to remote nodes in other networks if it could be determined; otherwise, null.</returns>
-        [NotNull, ItemCanBeNull, Pure]
-        internal static async Task<IPAddress> FindPublicIPAddressAsync(CancellationToken cancellationToken = default(CancellationToken))
+        internal static async Task<IPAddress?> FindPublicIPAddressAsync(CancellationToken cancellationToken = default)
         {
             if (publicIpAddress != null)
                 return publicIpAddress;
@@ -94,12 +89,9 @@ namespace Mystiko.Net
             return null;
         }
 
-        public static async Task StartHolePunchRendezvousListener([NotNull] IPAddress ipAddress, int port = 5109, CancellationToken cancellationToken = default(CancellationToken))
+        public static async Task StartHolePunchRendezvousListener(IPAddress ipAddress, int port = 5109, CancellationToken cancellationToken = default)
         {
-            if (ipAddress == null)
-            {
-                throw new ArgumentNullException(nameof(ipAddress));
-            }
+            ArgumentNullException.ThrowIfNull(ipAddress);
 
             var listener = new TcpListener(ipAddress, port)
                                {

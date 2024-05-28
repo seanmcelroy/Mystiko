@@ -8,17 +8,14 @@
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using Mystiko.Cryptography;
 
     public static class DirectoryUtility
     {
-        [Pure, NotNull, ItemNotNull]
         public static async Task<LocalDirectoryManifest> PreHashDirectory(
-            [NotNull] string inputPath, 
-            [CanBeNull] Action<string> enteringDirectoryAction = null, 
-            [CanBeNull] Action<string> hashingFileAction = null, 
+            string inputPath, 
+            Action<string>? enteringDirectoryAction = null, 
+            Action<string>? hashingFileAction = null, 
             bool verbose = false,
             int? chunkSize = null)
         {
@@ -64,7 +61,7 @@
                        };
         }
 
-        public static async Task<LocalShareFileManifest> PreHashFile([NotNull] string inputFilePath, int? chunkSize, bool verbose = false, CancellationToken cancellationToken = default(CancellationToken))
+        public static async Task<LocalShareFileManifest> PreHashFile(string inputFilePath, int? chunkSize, bool verbose = false, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(inputFilePath))
                 throw new ArgumentNullException(nameof(inputFilePath));

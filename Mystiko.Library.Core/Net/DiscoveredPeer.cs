@@ -12,8 +12,6 @@ namespace Mystiko.Net
     using System;
     using System.Net;
 
-    using JetBrains.Annotations;
-
     /// <summary>
     /// A peer that was discovered by the <see cref="TcpPeerDiscoveryChannel"/>
     /// </summary>
@@ -29,23 +27,21 @@ namespace Mystiko.Net
         /// <param name="discoveryEndpoint">
         /// The network remote endpoint through which this node was discovered
         /// </param>
-        public DiscoveredPeer([NotNull] ServerNodeIdentity nodeIdentity, [NotNull] IPEndPoint discoveryEndpoint)
+        public DiscoveredPeer(ServerNodeIdentity nodeIdentity, IPEndPoint discoveryEndpoint)
         {
-            this.NodeIdentity = nodeIdentity ?? throw new ArgumentNullException(nameof(nodeIdentity));
-            this.DiscoveryEndpoint = discoveryEndpoint ?? throw new ArgumentNullException(nameof(discoveryEndpoint));
+            NodeIdentity = nodeIdentity ?? throw new ArgumentNullException(nameof(nodeIdentity));
+            DiscoveryEndpoint = discoveryEndpoint ?? throw new ArgumentNullException(nameof(discoveryEndpoint));
         }
 
         /// <summary>
         /// Gets the identity of a node consisting of a date of generation, key pair, and nonce proving the date and public key
         /// meet a target difficulty requirement
         /// </summary>
-        [NotNull]
         public ServerNodeIdentity NodeIdentity { get; private set; }
 
         /// <summary>
         /// Gets the network remote endpoint through which this node was discovered
         /// </summary>
-        [NotNull]
         public IPEndPoint DiscoveryEndpoint { get; private set; }
     }
 }

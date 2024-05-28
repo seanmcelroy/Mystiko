@@ -12,8 +12,6 @@ namespace Mystiko
     using System;
     using System.Threading;
 
-    using JetBrains.Annotations;
-
     using log4net;
     using log4net.Core;
 
@@ -37,14 +35,13 @@ namespace Mystiko
         /// <param name="callerFilePath">File path of the caller</param>
         /// <param name="callerLineNumber">Line number of the caller</param>
         /// <param name="callerMemberName">Member name of the caller</param>
-        [UsedImplicitly]
         public static void Trace(
-            [NotNull] this ILog log, 
-            [NotNull] string message, 
-            [CanBeNull] Exception exception = null,
-            [CanBeNull, System.Runtime.CompilerServices.CallerFilePath] string callerFilePath = null,
+            this ILog log, 
+            string message, 
+            Exception? exception = null,
+            [System.Runtime.CompilerServices.CallerFilePath] string? callerFilePath = null,
             [System.Runtime.CompilerServices.CallerLineNumber] int callerLineNumber = 0,
-            [CanBeNull, System.Runtime.CompilerServices.CallerMemberName] string callerMemberName = null)
+            [System.Runtime.CompilerServices.CallerMemberName] string ?callerMemberName = null)
         {
             log.Logger?.Log(new LoggingEvent(
                     new LoggingEventData
@@ -72,14 +69,13 @@ namespace Mystiko
         /// <param name="callerFilePath">File path of the caller</param>
         /// <param name="callerLineNumber">Line number of the caller</param>
         /// <param name="callerMemberName">Member name of the caller</param>
-        [UsedImplicitly]
         public static void Verbose(
-            [NotNull] this ILog log,
-            [NotNull] string message, 
-            [CanBeNull] Exception exception = null,
-            [CanBeNull, System.Runtime.CompilerServices.CallerFilePath] string callerFilePath = null,
+            this ILog log,
+            string message, 
+            Exception? exception = null,
+            [System.Runtime.CompilerServices.CallerFilePath] string? callerFilePath = null,
             [System.Runtime.CompilerServices.CallerLineNumber] int callerLineNumber = 0,
-            [CanBeNull, System.Runtime.CompilerServices.CallerMemberName] string callerMemberName = null)
+            [System.Runtime.CompilerServices.CallerMemberName] string? callerMemberName = null)
         {
             log.Logger?.Log(new LoggingEvent(
                     new LoggingEventData

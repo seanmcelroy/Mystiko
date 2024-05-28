@@ -6,14 +6,11 @@
     using System.IO;
     using System.Linq;
 
-    using JetBrains.Annotations;
-
     public class FileManifest
     {
         /// <summary>
         /// Gets or sets the version of the manifest protocol
         /// </summary>
-        [UsedImplicitly]
         public uint Version { get; set; } = FileUtility.FILE_PACKAGING_PROTOCOL_VERSION;
 
         [Newtonsoft.Json.JsonIgnore]
@@ -30,9 +27,9 @@
             }
         }
 
-        public string[] BlockHashes { get; [UsedImplicitly] set; }
+        public string[] BlockHashes { get; set; }
 
-        public string Name { get; [UsedImplicitly] set; }
+        public string Name { get; set; }
 
         [Newtonsoft.Json.JsonIgnore]
         public FileInfo File
@@ -50,8 +47,7 @@
         [Newtonsoft.Json.JsonIgnore]
         public byte[] UnlockBytes { get; set; }
 
-        [CanBeNull]
-        public string Unlock
+        public string? Unlock
         {
             get
             {
@@ -67,7 +63,6 @@
         [Newtonsoft.Json.JsonIgnore]
         public DateTime PackedUtc { get; set; } = DateTime.UtcNow;
 
-        [UsedImplicitly]
         public long? PackedDateEpoch
         {
             get
@@ -85,7 +80,6 @@
         [Newtonsoft.Json.JsonIgnore]
         public DateTime? CreatedUtc { get; set; }
 
-        [UsedImplicitly]
         public long? CreatedDateEpoch
         {
             get

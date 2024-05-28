@@ -17,8 +17,6 @@ namespace Mystiko.Net
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using log4net;
 
     using Mystiko.Database.Records;
@@ -33,24 +31,19 @@ namespace Mystiko.Net
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
-        [NotNull]
-        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Server));
 
         /// <summary>
         /// The configuration of the node in which this server instance is executing
         /// </summary>
-        [NotNull]
         private readonly NodeConfiguration _nodeConfiguration;
 
         /// <summary>
         /// The channel over which this server accepts connections
         /// </summary>
-        [NotNull]
         private readonly IServerChannel _serverChannel;
 
-        [NotNull]
-        private readonly CancellationTokenSource _acceptCancellationTokenSource = new CancellationTokenSource();
+        private readonly CancellationTokenSource _acceptCancellationTokenSource = new();
 
         /// <summary>
         /// A value indicating whether or not this object is disposed
@@ -67,8 +60,8 @@ namespace Mystiko.Net
         /// A function that returns a <see cref="IServerChannel"/> for listening for incoming connections
         /// </param>
         public Server(
-            [NotNull] NodeConfiguration configuration,
-            [CanBeNull] Func<IServerChannel> serverChannelFactory = null)
+            NodeConfiguration configuration,
+            Func<IServerChannel>? serverChannelFactory = null)
         {
             Debug.Assert(configuration != null);
             Debug.Assert(configuration.Identity != null, "configuration.Identity != null");
@@ -78,18 +71,14 @@ namespace Mystiko.Net
             Debug.Assert(configuration.Identity.PublicKeyY != null, "configuration.Identity.PublicKeyY != null");
             Debug.Assert(configuration.Identity.PublicKeyY.Length == 32, "configuration.Identity.PublicKeyY.Length == 32");
 
-            this._nodeConfiguration = configuration;
+            _nodeConfiguration = configuration;
 
             // Create network channel
-            Debug.Assert(this._nodeConfiguration.Identity != null, "this._nodeConfiguration.Identity != null");
-            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(this._nodeConfiguration.Identity, IPAddress.Any, this.ListenerPort))).Invoke();
-            if (channel == null)
-            {
-                throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));
-            }
-
+            Debug.Assert(_nodeConfiguration.Identity != null, "this._nodeConfiguration.Identity != null");
+            var channel = (serverChannelFactory ?? (() => new TcpServerChannel(_nodeConfiguration.Identity, IPAddress.Any, ListenerPort))).Invoke() 
+                ?? throw new ArgumentException("Server channel factory returned null on invocation", nameof(serverChannelFactory));
             Debug.Assert(channel != null, "channel != null");
-            this._serverChannel = channel;
+            _serverChannel = channel;
         }
 
         /// <summary>
@@ -113,26 +102,21 @@ namespace Mystiko.Net
         /// <param name="disableLogging">A value indicating or not to disable logging</param>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        [NotNull]
-        public async Task StartAsync(bool disableLogging = false, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task StartAsync(bool disableLogging = false, CancellationToken cancellationToken = default)
         {
-            if (this._disposed)
-            {
-                throw new ObjectDisposedException("Server");
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
 
             // Determine if this instance if behind a firewall.  Open a random port, and try to access it.
-            var sc = this._serverChannel as TcpServerChannel;
-            if (sc != null)
+            if (_serverChannel is TcpServerChannel sc)
             {
 #if !DEBUG
-                this.Firewalled = await DetermineFirewallStatus(cancellationToken);
+                Firewalled = await DetermineFirewallStatus(cancellationToken);
 #endif
                 sc.DisableLogging = disableLogging;
             }
 
-            this._serverChannel.Passive = this.Passive;
-            await this._serverChannel.StartAsync(this._acceptCancellationTokenSource.Token);
+            _serverChannel.Passive = Passive;
+            await _serverChannel.StartAsync(_acceptCancellationTokenSource.Token);
         }
 
         /// <summary>
@@ -140,25 +124,11 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="endpoint">The endpoint information for how to connect to the peer, as interpreted by the <see cref="IServerChannel"/> implementation</param>
         /// <returns>A task that can be awaited while the operation completes</returns>
-        [NotNull, ItemCanBeNull]
-        public async Task<IClientChannel> ConnectToPeerAsync([NotNull] IPEndPoint endpoint)
+        public async Task<IClientChannel?> ConnectToPeerAsync(IPEndPoint endpoint)
         {
-            if (this._disposed)
-            {
-                throw new ObjectDisposedException("Server");
-            }
-
-            if (endpoint == null)
-            {
-                throw new ArgumentNullException(nameof(endpoint));
-            }
-
-            if (this._disposed)
-            {
-                throw new ObjectDisposedException("Server");
-            }
-
-            return await this._serverChannel.ConnectToPeerAsync(endpoint, this._acceptCancellationTokenSource.Token);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            ArgumentNullException.ThrowIfNull(endpoint);
+            return await _serverChannel.ConnectToPeerAsync(endpoint, _acceptCancellationTokenSource.Token);
         }
 
         /// <summary>
@@ -166,18 +136,18 @@ namespace Mystiko.Net
         /// </summary>
         public void Dispose()
         {
-            if (!this._disposed)
+            if (!_disposed)
             {
                 // Dispose managed resources.
-                this._acceptCancellationTokenSource.Cancel();
-                var channel = this._serverChannel as IDisposable;
+                _acceptCancellationTokenSource.Cancel();
+                var channel = _serverChannel as IDisposable;
                 channel?.Dispose();
 
                 // There are no unmanaged resources to release, but
                 // if we add them, they need to be released here.
             }
 
-            this._disposed = true;
+            _disposed = true;
         }
 
         /// <summary>
@@ -185,7 +155,7 @@ namespace Mystiko.Net
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A value indicating whether the server is behind a firewall or NAT that prevent it from operating a server process on the Internet that can accept inbound connection requests</returns>
-        private static async Task<bool?> DetermineFirewallStatus(CancellationToken cancellationToken = default(CancellationToken))
+        private static async Task<bool?> DetermineFirewallStatus(CancellationToken cancellationToken = default)
         {
             // Determine if this instance if behind a firewall.  Open a random port, and try to access it.
             Logger.Debug("Determining whether this node is behind a firewall...");
@@ -218,14 +188,14 @@ namespace Mystiko.Net
                     {
                         var receivingClient = await listener.AcceptTcpClientAsync();
                         Debug.Assert(receivingClient != null, "receivingClient != null");
-                        Logger.Debug($"Accepted connection from {((IPEndPoint)receivingClient.Client.RemoteEndPoint).Address}:{((IPEndPoint)receivingClient.Client.RemoteEndPoint).Port} to {((IPEndPoint)receivingClient.Client.LocalEndPoint).Address}:{((IPEndPoint)receivingClient.Client.LocalEndPoint).Port}");
+                        Logger.Debug($"Accepted connection from {((IPEndPoint?)receivingClient.Client.RemoteEndPoint)?.Address}:{((IPEndPoint?)receivingClient.Client.RemoteEndPoint)?.Port} to {((IPEndPoint?)receivingClient.Client.LocalEndPoint)?.Address}:{((IPEndPoint?)receivingClient.Client.LocalEndPoint)?.Port}");
                         connectionMade = true;
                     }
                     catch (SocketException sex)
                     {
                         Logger.Debug($"Exception when attempting to accept connection {sex.Message}", sex);
                     }
-                }, 
+                },
                 cancellationToken);
 
             var connectorTask = Task.Run(
@@ -233,20 +203,18 @@ namespace Mystiko.Net
                 {
                     try
                     {
-                        using (var initiatingClient = new TcpClient())
-                        {
-                            Logger.Debug($"Connecting to TCP {publicIp}:{port}");
-                            await initiatingClient.ConnectAsync(publicIp, port);
-                        }
+                        using var initiatingClient = new TcpClient();
+                        Logger.Debug($"Connecting to TCP {publicIp}:{port}");
+                        await initiatingClient.ConnectAsync(publicIp, port);
                     }
                     catch (SocketException sex)
                     {
                         Logger.Debug($"Exception when attempting to connect {sex.Message}");
                     }
-                }, 
+                },
                 cancellationToken);
 
-            var completed = Task.WaitAll(new[] { listenerTask, connectorTask }, 10000, cancellationToken);
+            var completed = Task.WaitAll([listenerTask, connectorTask], 10000, cancellationToken);
             var firewalled = !completed || !connectionMade;
             Logger.Info($"Firewall status: {firewalled}");
             return firewalled;

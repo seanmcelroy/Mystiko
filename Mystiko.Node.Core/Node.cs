@@ -18,8 +18,6 @@ namespace Mystiko.Node.Core
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using log4net;
 
     using Mystiko.Cryptography;
@@ -43,33 +41,27 @@ namespace Mystiko.Node.Core
         /// <summary>
         /// The logging implementation for recording the activities that occur in the methods of this class
         /// </summary>
-        [NotNull]
-        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Node));
 
         /// <summary>
         /// Gets or sets the configuration of this node
         /// </summary>
-        [CanBeNull]
-        private NodeConfiguration Configuration { get; set; }
+        private NodeConfiguration? Configuration { get; set; }
 
         /// <summary>
         /// Gets or sets the location of this node
         /// </summary>
-        [CanBeNull]
-        private byte[] Location { get; set; }
+        private byte[]? Location { get; set; }
 
         /// <summary>
         /// Gets or sets the salt for the encryption of the configuration of this node
         /// </summary>
-        [CanBeNull]
-        private byte[] Salt { get; set; }
+        private byte[]? Salt { get; set; }
 
         /// <summary>
         /// Gets or sets the encryption key for the configuration of this node
         /// </summary>
-        [CanBeNull]
-        private byte[] EncryptionKey { get; set; }
+        private byte[]? EncryptionKey { get; set; }
 
         /// <summary>
         /// Gets or sets whether or not to supress casual INFO logging of the methods of this class
@@ -79,14 +71,12 @@ namespace Mystiko.Node.Core
         /// <summary>
         /// The network server object
         /// </summary>
-        [CanBeNull]
-        private Server _server;
+        private Server? _server;
 
         /// <summary>
         /// If a lock file exists, this is the stream holding that lock
         /// </summary>
-        [CanBeNull]
-        private FileStream _lockFileStream;
+        private FileStream? _lockFileStream;
 
         /// <summary>
         /// A value indicating whether or not this object is disposed
@@ -104,14 +94,13 @@ namespace Mystiko.Node.Core
         /// <param name="listenerPort">
         /// The port on which to listen for peer client connections.  By default, this is 5109
         /// </param>
-        public Node([NotNull] string tag, [NotNull] string password, bool? passive = null, int? listenerPort = null)
+        public Node(string tag, string password, bool? passive = null, int? listenerPort = null)
         {
-            if (password == null)
-                throw new ArgumentNullException(nameof(password));
+            ArgumentNullException.ThrowIfNull(password);
 
-            this.Tag = tag ?? throw new ArgumentNullException(nameof(tag));
-            this.LoadConfigurationInternalAsync(null, password, passive, listenerPort).GetAwaiter().GetResult();
-            Debug.Assert(this.Configuration != null, "this.Configuration != null");
+            Tag = tag ?? throw new ArgumentNullException(nameof(tag));
+            LoadConfigurationInternalAsync(null, password, passive, listenerPort).GetAwaiter().GetResult();
+            Debug.Assert(Configuration != null, "this.Configuration != null");
         }
 
         /// <summary>
@@ -127,10 +116,9 @@ namespace Mystiko.Node.Core
         /// <param name="passive">A value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only</param>
         /// <param name="listenerPort">The port on which to listen for peer client connections.  By default, this is 5109</param>
         /// <returns>A tuple containing the node configuration, the salt value, and the encryption key used to decode the configuration file</returns>
-        [NotNull, Pure, ItemNotNull]
         public static async Task<Tuple<NodeConfiguration, byte[], byte[]>> LoadConfigurationAsync(
-            [NotNull] string filePath,
-            [NotNull] string password,
+            string filePath,
+            string password,
             bool? passive = null,
             int? listenerPort = null)
         {
@@ -149,7 +137,7 @@ namespace Mystiko.Node.Core
                 using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     // Read salt
-                    var read = await fs.ReadAsync(salt, 0, 64);
+                    var read = await fs.ReadAsync(salt.AsMemory(0, 64));
                     Debug.Assert(read == 64);
                     Debug.Assert(fs.Position == 64);
 
@@ -162,7 +150,7 @@ namespace Mystiko.Node.Core
                     Debug.Assert(encKey != null, "encKey != null");
 
                     encryptedBytes = new byte[fs.Length - 64];
-                    await fs.ReadAsync(encryptedBytes, 0, encryptedBytes.Length);
+                    await fs.ReadAsync(encryptedBytes);
                 }
 
                 var decryptedStream = new MemoryStream();
@@ -180,7 +168,7 @@ namespace Mystiko.Node.Core
 
                 var version = Convert.ToInt32(decryptedString.Substring(8, 8));
 
-                var serializedConfiguration = decryptedString.Substring(16);
+                var serializedConfiguration = decryptedString[16..];
                 try
                 {
                     var nodeConfiguration = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfiguration);
@@ -224,8 +212,8 @@ namespace Mystiko.Node.Core
             }
         }
 
-        private static async Task CreateNewConfigurationFileAsync([NotNull] string filePath,
-            [NotNull] string password,
+        private static async Task CreateNewConfigurationFileAsync(string filePath,
+            string password,
             bool? passive = null,
             int? listenerPort = null)
         {
@@ -250,43 +238,41 @@ namespace Mystiko.Node.Core
             await SaveConfigurationAsync(filePath, password, nodeConfiguration);
         }
 
-        [NotNull]
         private async Task LoadConfigurationInternalAsync(
-            [CanBeNull] string configurationFile,
-            [NotNull] string password,
+            string? configurationFile,
+            string password,
             bool? passive = null,
             int? listenerPort = null)
         {
-            configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
+            configurationFile ??= Path.Combine(AppContext.BaseDirectory, $"node.{Tag}.config");
             Debug.Assert(configurationFile != null, "configurationFile != null");
             var ret = await LoadConfigurationAsync(configurationFile, password, passive, listenerPort);
             Debug.Assert(ret.Item1 != null, "ret.Item1 != null");
             Debug.Assert(ret.Item1.Identity != null, "ret.Item1.Identity != null");
 
             // Validate identity
-            this.Configuration = ret.Item1;
-            if (this.Configuration.Identity == null)
+            Configuration = ret.Item1;
+            if (Configuration.Identity == null)
                 throw new InvalidOperationException("Server node identity is not valid!");
 
-            var validatedIdentity = HashUtility.ValidateIdentity(this.Configuration.Identity, 1);
+            var validatedIdentity = HashUtility.ValidateIdentity(Configuration.Identity, 1);
             if (!validatedIdentity.DifficultyValidated)
                 throw new InvalidOperationException("Server node identity is not valid!");
 
-            this.Salt = ret.Item2;
-            this.EncryptionKey = ret.Item3;
+            Salt = ret.Item2;
+            EncryptionKey = ret.Item3;
 
-            Debug.Assert(this.Configuration.Identity != null, "this.Configuration.Identity != null");
-            this.Location = FileUtility.ExclusiveOr(this.Configuration.Identity.PublicKeyX, this.Configuration.Identity.PublicKeyY);
+            Debug.Assert(Configuration.Identity != null, "this.Configuration.Identity != null");
+            Location = FileUtility.ExclusiveOr(Configuration.Identity.PublicKeyX, Configuration.Identity.PublicKeyY);
 
             Debug.Assert(validatedIdentity.CompositeHash != null, "validatedIdentity.CompositeHash != null");
-            Logger.Debug($"{validatedIdentity.CompositeHash.Substring(3, 8)}: Node location: {FileUtility.ByteArrayToString(this.Location)}");
+            Logger.Debug($"{validatedIdentity.CompositeHash.Substring(3, 8)}: Node location: {FileUtility.ByteArrayToString(Location)}");
         }
 
-        [NotNull]
         public static async Task SaveConfigurationAsync(
-            [NotNull] string configurationFile,
-            [NotNull] string password,
-            [NotNull] NodeConfiguration configuration)
+            string configurationFile,
+            string password,
+            NodeConfiguration configuration)
         {
             var salt = new byte[64];
             if (File.Exists(configurationFile))
@@ -294,7 +280,7 @@ namespace Mystiko.Node.Core
                 // Get existing salt
                 using (var fs = new FileStream(configurationFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    var read = await fs.ReadAsync(salt, 0, 64);
+                    var read = await fs.ReadAsync(salt.AsMemory(0, 64));
                     Debug.Assert(read == 64);
                 }
 
@@ -303,11 +289,9 @@ namespace Mystiko.Node.Core
             else
             {
                 // Create new salt
-                using (var rng = RandomNumberGenerator.Create())
-                {
-                    Debug.Assert(rng != null, "rng != null");
-                    rng.GetBytes(salt);
-                }
+                using var rng = RandomNumberGenerator.Create();
+                Debug.Assert(rng != null, "rng != null");
+                rng.GetBytes(salt);
             }
 
             // Get encryption key
@@ -322,61 +306,55 @@ namespace Mystiko.Node.Core
             await SaveConfigurationAsync(configurationFile, salt, encKey, configuration);
         }
 
-        [NotNull]
         public static async Task SaveConfigurationAsync(
-            [NotNull] string configurationFile,
-            [NotNull] byte[] salt,
-            [NotNull] byte[] encryptionKey,
-            [NotNull] NodeConfiguration configuration)
+            string configurationFile,
+            byte[] salt,
+            byte[] encryptionKey,
+            NodeConfiguration configuration)
         {
             if (configuration == null)
                 throw new InvalidOperationException("No configuration has been loaded");
-            if (encryptionKey == null)
-                throw new ArgumentNullException(nameof(encryptionKey));
-            
+            ArgumentNullException.ThrowIfNull(encryptionKey);
+
             // Write header then data
             if (File.Exists(configurationFile))
                 File.Delete(configurationFile);
 
-            using (var fs = new FileStream(configurationFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                var outputStream = new MemoryStream();
+            using var fs = new FileStream(configurationFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            var outputStream = new MemoryStream();
 
-                // Write salt
-                await fs.WriteAsync(salt, 0, 64);
+            // Write salt
+            await fs.WriteAsync(salt.AsMemory(0, 64));
 
-                // Write known text
-                var knownTextBytes = System.Text.Encoding.UTF8.GetBytes("MYSTIKO!");
-                Debug.Assert(knownTextBytes != null, "knownTextBytes != null");
-                await outputStream.WriteAsync(knownTextBytes, 0, knownTextBytes.Length);
+            // Write known text
+            var knownTextBytes = System.Text.Encoding.UTF8.GetBytes("MYSTIKO!");
+            Debug.Assert(knownTextBytes != null, "knownTextBytes != null");
+            await outputStream.WriteAsync(knownTextBytes);
 
-                // Write version
-                var versionBytes = System.Text.Encoding.UTF8.GetBytes("00000001");
-                await outputStream.WriteAsync(versionBytes, 0, versionBytes.Length);
+            // Write version
+            var versionBytes = System.Text.Encoding.UTF8.GetBytes("00000001");
+            await outputStream.WriteAsync(versionBytes);
 
-                // Write content
-                var serializedConfiguration = JsonConvert.SerializeObject(configuration);
-                var serializedConfigurationBytes = System.Text.Encoding.UTF8.GetBytes(serializedConfiguration);
-                await outputStream.WriteAsync(serializedConfigurationBytes, 0, serializedConfigurationBytes.Length);
+            // Write content
+            var serializedConfiguration = JsonConvert.SerializeObject(configuration);
+            var serializedConfigurationBytes = System.Text.Encoding.UTF8.GetBytes(serializedConfiguration);
+            await outputStream.WriteAsync(serializedConfigurationBytes);
 
-                outputStream.Seek(0, SeekOrigin.Begin);
-                await EncryptUtility.EncryptStreamAsync(outputStream, encryptionKey, fs);
-            }
+            outputStream.Seek(0, SeekOrigin.Begin);
+            await EncryptUtility.EncryptStreamAsync(outputStream, encryptionKey, fs);
         }
         
-        [NotNull]
         private async Task SaveConfigurationInternalAsync(
-            [CanBeNull] string configurationFile, [NotNull] byte[] salt, [NotNull] byte[] encryptionKey)
+            string? configurationFile, byte[] salt, byte[] encryptionKey)
         {
-            if (encryptionKey == null)
-                throw new ArgumentNullException(nameof(encryptionKey));
-            if (this.Configuration == null)
+            ArgumentNullException.ThrowIfNull(encryptionKey);
+            if (Configuration == null)
                 throw new InvalidOperationException("No configuration has been loaded");
 
-            configurationFile = configurationFile ?? Path.Combine(AppContext.BaseDirectory, $"node.{this.Tag}.config");
+            configurationFile ??= Path.Combine(AppContext.BaseDirectory, $"node.{Tag}.config");
             Debug.Assert(configurationFile != null, "configurationFile != null");
 
-            await SaveConfigurationAsync(configurationFile, salt, encryptionKey, this.Configuration);
+            await SaveConfigurationAsync(configurationFile, salt, encryptionKey, Configuration);
         }
 
         /// <summary>
@@ -384,23 +362,23 @@ namespace Mystiko.Node.Core
         /// </summary>
         /// <param name="cancellationToken">A cancellation token to stop attempting to discover peers</param>
         /// <returns>A value indicating whether the server is behind a firewall or NAT that prevent it from operating a server process on the Internet that can accept inbound connection requests</returns>
-        public async Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
+        public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            if (this.Configuration == null)
+            if (Configuration == null)
                 throw new InvalidOperationException("Configuration has not been loaded");
 
-            this._server = new Server(this.Configuration);
+            _server = new Server(Configuration);
 
             // Setup data directory
 
             // Lock file
-            var libraryDirectory = Path.Combine(AppContext.BaseDirectory, "Library" + this.Tag);
+            var libraryDirectory = Path.Combine(AppContext.BaseDirectory, "Library" + Tag);
             if (!Directory.Exists(libraryDirectory))
             {
                 Directory.CreateDirectory(libraryDirectory);
             }
 
-            var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + this.Tag);
+            var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + Tag);
             if (!Directory.Exists(repoDirectory))
             {
                 Directory.CreateDirectory(repoDirectory);
@@ -409,7 +387,7 @@ namespace Mystiko.Node.Core
             var lockFile = Path.Combine(libraryDirectory, "lock");
             if (!File.Exists(lockFile))
             {
-                this._lockFileStream = File.Open(lockFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+                _lockFileStream = File.Open(lockFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
             }
             else
             {
@@ -423,13 +401,13 @@ namespace Mystiko.Node.Core
                     throw new InvalidOperationException($"Library directory {libraryDirectory} already in use by another process.", ex);
                 }
 
-                this._lockFileStream = fileStreamAttempt;
+                _lockFileStream = fileStreamAttempt;
             }
             
             // Start network subsystem
-            Logger.Info($"Starting server initialization{(" " + this.Tag).TrimEnd()}");
-            await this._server.StartAsync(this.DisableLogging, cancellationToken);
-            Logger.Info($"Server process initialization{(" " + this.Tag).TrimEnd()} has completed");
+            Logger.Info($"Starting server initialization{(" " + Tag).TrimEnd()}");
+            await _server.StartAsync(DisableLogging, cancellationToken);
+            Logger.Info($"Server process initialization{(" " + Tag).TrimEnd()} has completed");
         }
 
         /// <summary>
@@ -437,20 +415,19 @@ namespace Mystiko.Node.Core
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        public async Task<bool> InsertFileAsync([NotNull] FileInfo file)
+        public async Task<bool> InsertFileAsync(FileInfo file)
         {
-            if (file == null)
-                throw new ArgumentNullException(nameof(file));
+            ArgumentNullException.ThrowIfNull(file);
             if (!file.Exists)
                 throw new FileNotFoundException("File does not exist", file.FullName);
 
-            if (!this.DisableLogging)
+            if (!DisableLogging)
                 Logger.Info($"Inserting file {file.FullName}...");
 
             /*
              * Store chunks and manifest locally in the LIBRARY directory
              */
-            var dataDirectory = Path.Combine(AppContext.BaseDirectory, "Library" + this.Tag);
+            var dataDirectory = Path.Combine(AppContext.BaseDirectory, "Library" + Tag);
             var manifestFile = new FileInfo(Path.Combine(dataDirectory, file.Name + ".manifest"));
             if (manifestFile.Exists)
             {
@@ -482,7 +459,7 @@ namespace Mystiko.Node.Core
             /*
              * Encrypt manifest with Manifest Decrypt Key (MDK)
              */
-            var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + this.Tag);
+            var repoDirectory = Path.Combine(AppContext.BaseDirectory, "Repository" + Tag);
             string tfid;
             using (var fs = new FileStream(manifestFile.FullName, FileMode.Open, FileAccess.Read))
             using (var bfs = new BufferedStream(fs))
@@ -497,13 +474,11 @@ namespace Mystiko.Node.Core
                 foreach (var fileName in Directory.GetFiles(repoDirectory, chunkResult.Name + ".*"))
                 {
                     // Get first 32 bytes to prepare XOR
-                    using (var br = new BinaryReader(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, 32)))
-                    {
-                        var fileFirst32 = br.ReadBytes(32);
-                        Debug.Assert(fileFirst32 != null, "fileFirst32 != null");
-                        Debug.Assert(fileFirst32.Length == 32, "fileFirst32.Length == 32");
-                        blockXors = FileUtility.ExclusiveOr(blockXors, fileFirst32);
-                    }
+                    using var br = new BinaryReader(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, 32));
+                    var fileFirst32 = br.ReadBytes(32);
+                    Debug.Assert(fileFirst32 != null, "fileFirst32 != null");
+                    Debug.Assert(fileFirst32.Length == 32, "fileFirst32.Length == 32");
+                    blockXors = FileUtility.ExclusiveOr(blockXors, fileFirst32);
                 }
 
                 // TODO: XOR progressive network entropy
@@ -529,34 +504,30 @@ namespace Mystiko.Node.Core
             /*
              * Create Resource Record
              */
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                Debug.Assert(rng != null, "rng != null");
+            using var rng = RandomNumberGenerator.Create();
+            Debug.Assert(rng != null, "rng != null");
 
-                var rr = new ResourceRecord
-                         {
-                             TemporalFileID = tfid,
-                             EntropyTimestamp = 0,
-                             BlockHashes = chunkResult.BlockHashes.OrderBy(h =>
+            var rr = new ResourceRecord
+            {
+                TemporalFileID = tfid,
+                EntropyTimestamp = 0,
+                BlockHashes = [.. chunkResult.BlockHashes.OrderBy(h =>
                              {
                                  var iBytes = new byte[16];
                                  rng.GetBytes(iBytes);
                                  return BitConverter.ToInt32(iBytes, 0);
-                             }).ToArray()
-                         };
+                             })]
+            };
 
-                Debug.Assert(this.Configuration != null, "this.Configuration != null");
-                Debug.Assert(this.Configuration.ResourceRecords != null, "this.Configuration.ResourceRecords != null");
-                this.Configuration.ResourceRecords.Add(rr);
+            Debug.Assert(Configuration != null, "this.Configuration != null");
+            Debug.Assert(Configuration.ResourceRecords != null, "this.Configuration.ResourceRecords != null");
+            Configuration.ResourceRecords.Add(rr);
 
-                await this.SaveConfigurationInternalAsync(null, this.Salt, this.EncryptionKey);
+            await SaveConfigurationInternalAsync(null, Salt, EncryptionKey);
 
-                using (var fs = new FileStream(Path.Combine(dataDirectory, tfid + ".rr"), FileMode.CreateNew))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.Write(JsonConvert.SerializeObject(rr));
-                }
-            }
+            using var fsRR = new FileStream(Path.Combine(dataDirectory, tfid + ".rr"), FileMode.CreateNew);
+            using var swRR = new StreamWriter(fsRR);
+            swRR.Write(JsonConvert.SerializeObject(rr));
 
             return true;
         }
@@ -566,16 +537,16 @@ namespace Mystiko.Node.Core
         /// </summary>
         public void Dispose()
         {
-            if (!this._disposed)
+            if (!_disposed)
             {
                 // Dispose managed resources.
-                this._server.Dispose();
+                _server?.Dispose();
 
-                if (this._lockFileStream != null)
+                if (_lockFileStream != null)
                 {
-                    var lockFileName = this._lockFileStream.Name;
-                    this._lockFileStream.Dispose();
-                    this._lockFileStream = null;
+                    var lockFileName = _lockFileStream.Name;
+                    _lockFileStream.Dispose();
+                    _lockFileStream = null;
                     File.Delete(lockFileName);
                 }
 
@@ -583,7 +554,7 @@ namespace Mystiko.Node.Core
                 // if we add them, they need to be released here.
             }
 
-            this._disposed = true;
+            _disposed = true;
         }
     }
 }

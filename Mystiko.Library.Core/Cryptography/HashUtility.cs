@@ -15,8 +15,6 @@ namespace Mystiko.Cryptography
     using System.Security.Cryptography;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     using Mystiko.Net;
 
     /// <summary>
@@ -27,34 +25,26 @@ namespace Mystiko.Cryptography
         /// <summary>
         /// An instance of a hashing algorithm
         /// </summary>
-        [NotNull]
         private static readonly SHA512 Hasher = SHA512.Create();
 
         /// <summary>
         /// Provides the SHA512 hash of the <paramref name="source"/> file, and also provides the first and last 64 bytes of that file.
         /// </summary>
         /// <param name="source">The file to hash</param>
-        [NotNull, ItemNotNull, Pure]
-        public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async([NotNull] FileInfo source)
+        public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async(FileInfo source)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
-
-            using (var fs = new FileStream(source.FullName, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                return await HashFileSHA512Async(fs);
-            }
+            ArgumentNullException.ThrowIfNull(source);
+            using var fs = new FileStream(source.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return await HashFileSHA512Async(fs);
         }
 
         /// <summary>
         /// Provides the SHA512 hash of the <paramref name="source"/> file, and also provides the first and last 64 bytes of that file.
         /// </summary>
         /// <param name="source">The file to hash</param>
-        [NotNull, ItemNotNull, Pure]
-        public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async([NotNull] Stream source)
+        public static async Task<Tuple<byte[], byte[], byte[]>> HashFileSHA512Async(Stream source)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            ArgumentNullException.ThrowIfNull(source);
 
             using (var sha = SHA512.Create())
             using (var bsSource = new BufferedStream(source, 1024 * 1024 * 16))
@@ -81,11 +71,9 @@ namespace Mystiko.Cryptography
         /// <param name="nonce">The value to which to apply to the last eight bytes of the <paramref name="preNonceArray"/> before calculating the hash</param>
         /// <param name="preNonceArray">The output from the byte array for the header of this block</param>
         /// <returns>The hash for given pre-calculated header and a given nonce value</returns>
-        [NotNull, Pure]
-        public static byte[] HashForNonce(long nonce, [NotNull] byte[] preNonceArray)
+        public static byte[] HashForNonce(long nonce, byte[] preNonceArray)
         {
-            if (preNonceArray == null)
-                throw new ArgumentNullException(nameof(preNonceArray));
+            ArgumentNullException.ThrowIfNull(preNonceArray);
             if (preNonceArray.Length == 0)
                 throw new ArgumentException("Value cannot be an empty collection.", nameof(preNonceArray));
 
@@ -106,11 +94,9 @@ namespace Mystiko.Cryptography
         /// <returns>
         /// The nonce value that makes this block's header have the required number of leading zeros
         /// </returns>
-        [Pure]
-        public static uint HashForZeroCount([NotNull] byte[] input, int zeroCount)
+        public static uint HashForZeroCount(byte[] input, int zeroCount)
         {
-            if (input == null)
-                throw new ArgumentNullException(nameof(input));
+            ArgumentNullException.ThrowIfNull(input);
             if (input.Length == 0)
                 throw new ArgumentException("Value cannot be an empty collection.", nameof(input));
 
@@ -166,8 +152,7 @@ namespace Mystiko.Cryptography
         /// <param name="nonce">The nonce value that when applied the nonce value that when applied </param>
         /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
         /// <returns>A value indicating whether or not the <see cref="nonce"/> value has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
-        [NotNull, Pure]
-        public static ValidateIdentityResult ValidateIdentity(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce, byte targetDifficulty)
+        public static ValidateIdentityResult ValidateIdentity(ulong dateEpoch, byte[] publicKeyX, byte[] publicKeyY, ulong nonce, byte targetDifficulty)
         {
             byte[] identityBytes;
             using (var ms = new MemoryStream())
@@ -213,12 +198,9 @@ namespace Mystiko.Cryptography
         /// <param name="serverNodeIdentity">The identity to validate to the supplied <paramref name="targetDifficulty"/></param>
         /// <param name="targetDifficulty">The number of leading zeros required for the nonce-derived combined hash</param>
         /// <returns>A value indicating whether or not the <see cref="ServerNodeIdentity.Nonce"/> on the <paramref name="serverNodeIdentity"/> object has the requisite number of leading zeros when hashed together with other fields of this identity</returns>
-        [NotNull, Pure]
-        public static ValidateIdentityResult ValidateIdentity([NotNull] ServerNodeIdentity serverNodeIdentity, byte targetDifficulty)
+        public static ValidateIdentityResult ValidateIdentity(ServerNodeIdentity serverNodeIdentity, byte targetDifficulty)
         {
-            if (serverNodeIdentity == null)
-                throw new ArgumentNullException(nameof(serverNodeIdentity));
-
+            ArgumentNullException.ThrowIfNull(serverNodeIdentity);
             return ValidateIdentity(serverNodeIdentity.DateEpoch, serverNodeIdentity.PublicKeyX, serverNodeIdentity.PublicKeyY, serverNodeIdentity.Nonce, targetDifficulty);
         }
     }

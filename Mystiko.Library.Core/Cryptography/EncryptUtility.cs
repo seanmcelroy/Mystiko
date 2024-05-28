@@ -7,8 +7,6 @@
     using System.Security.Cryptography;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
     public static class EncryptUtility
     {
         /// <summary>
@@ -17,8 +15,7 @@
         /// <param name="source">The source file to encrypt</param>
         /// <param name="destination">The destination for the output encrypted file</param>
         /// <returns>The encryption key used to encrypt the file</returns>
-        [NotNull]
-        public static async Task<byte[]> GenerateKeyAndEncryptFileAsync([NotNull] FileInfo source, [NotNull] FileInfo destination)
+        public static async Task<byte[]> GenerateKeyAndEncryptFileAsync(FileInfo source, FileInfo destination)
         {
             var encKey = new byte[32];
             using (var rng = RandomNumberGenerator.Create())
@@ -46,8 +43,7 @@
         /// <param name="fileStream">The stream to encrypt</param>
         /// <param name="destination">The destination for the output encrypted file</param>
         /// <returns>The encryption key used to encrypt the file</returns>
-        [NotNull, ItemNotNull]
-        public static async Task<byte[]> GenerateKeyAndEncryptFileAsync([NotNull] BufferedStream fileStream, [NotNull] FileInfo destination)
+        public static async Task<byte[]> GenerateKeyAndEncryptFileAsync(BufferedStream fileStream, FileInfo destination)
         {
             var encKey = new byte[32];
             using (var rng = RandomNumberGenerator.Create())
@@ -76,8 +72,7 @@
         /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
         /// <param name="destination">The destination for the output encrypted file</param>
-        [NotNull]
-        public static async Task EncryptFileAsync([NotNull] FileInfo source, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] FileInfo destination)
+        public static async Task EncryptFileAsync(FileInfo source, byte[] encKey, byte[] iv, FileInfo destination)
         {
             using (var bsSource = new BufferedStream(new FileStream(source.FullName, FileMode.Open, FileAccess.Read), 1024 * 1024 * 16))
             using (var msDestination = destination.Open(FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -93,17 +88,13 @@
         /// <param name="fileStream">The stream to encrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="destination">The destination for the output encrypted file</param>
-        [NotNull]
-        public static async Task EncryptFileAsync([NotNull] Stream fileStream, [NotNull] byte[] encKey, [NotNull] FileInfo destination)
+        public static async Task EncryptFileAsync(Stream fileStream, byte[] encKey, FileInfo destination)
         {
-            if (fileStream == null)
-                throw new ArgumentNullException(nameof(fileStream));
+            ArgumentNullException.ThrowIfNull(fileStream);
             if (!fileStream.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(fileStream));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(destination);
             if (destination.Exists)
                 throw new ArgumentException($"File {destination.FullName} already exists", nameof(destination));
 
@@ -124,20 +115,15 @@
         /// <param name="fileStream">The stream to encrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
-        /// <param name="destination">The destination for the output encrypted file</param>
-        [NotNull]
-        public static async Task EncryptFileAsync([NotNull] Stream fileStream, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] FileInfo destination)
+        /// <param name="destination">The destination for the output encrypted file</param>        
+        public static async Task EncryptFileAsync(Stream fileStream, byte[] encKey, byte[] iv, FileInfo destination)
         {
-            if (fileStream == null)
-                throw new ArgumentNullException(nameof(fileStream));
+            ArgumentNullException.ThrowIfNull(fileStream);
             if (!fileStream.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(fileStream));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (iv == null)
-                throw new ArgumentNullException(nameof(iv));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(iv);
+            ArgumentNullException.ThrowIfNull(destination);
             if (destination.Exists)
                 throw new ArgumentException($"File {destination.FullName} already exists", nameof(destination));
 
@@ -154,17 +140,13 @@
         /// <param name="source">The stream to encrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="destination">The destination for the encrypted output</param>
-        [NotNull]
-        public static async Task EncryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] Stream destination)
+        public static async Task EncryptStreamAsync(Stream source, byte[] encKey, Stream destination)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            ArgumentNullException.ThrowIfNull(source);
             if (!source.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(source));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(destination);
             if (!destination.CanWrite)
                 throw new ArgumentException("Stream cannot be written", nameof(destination));
 
@@ -186,19 +168,14 @@
         /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
         /// <param name="destination">The destination for the encrypted output</param>
-        [NotNull]
-        public static async Task EncryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] Stream destination)
+        public static async Task EncryptStreamAsync(Stream source, byte[] encKey, byte[] iv, Stream destination)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            ArgumentNullException.ThrowIfNull(source);
             if (!source.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(source));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (iv == null)
-                throw new ArgumentNullException(nameof(iv));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(iv);
+            ArgumentNullException.ThrowIfNull(destination);
             if (!destination.CanWrite)
                 throw new ArgumentException("Stream cannot be written", nameof(destination));
 
@@ -225,17 +202,13 @@
         /// <param name="source">The file to decrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="destination">The destination for the output decrypted file</param>
-        [NotNull]
-        public static async Task DecryptFileAsync([NotNull] FileInfo source, [NotNull] byte[] encKey, [NotNull] FileInfo destination)
+        public static async Task DecryptFileAsync(FileInfo source, byte[] encKey, FileInfo destination)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            ArgumentNullException.ThrowIfNull(source);
             if (!source.Exists)
                 throw new FileNotFoundException($"File {source.FullName} does not exist", nameof(source));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(destination);
             if (destination.Exists)
                 throw new ArgumentException($"File {destination.FullName} already exists", nameof(destination));
 
@@ -251,17 +224,13 @@
         /// <param name="fileStream">The stream to decrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="destination">The destination for the output decrypted file</param>
-        [NotNull]
-        public static async Task DecryptFileAsync([NotNull] Stream fileStream, [NotNull] byte[] encKey, [NotNull] FileInfo destination)
+        public static async Task DecryptFileAsync(Stream fileStream, byte[] encKey, FileInfo destination)
         {
-            if (fileStream == null)
-                throw new ArgumentNullException(nameof(fileStream));
+            ArgumentNullException.ThrowIfNull(fileStream);
             if (!fileStream.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(fileStream));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(destination);
             if (destination.Exists)
                 throw new ArgumentException($"File {destination.FullName} already exists", nameof(destination));
 
@@ -283,19 +252,14 @@
         /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
         /// <param name="destination">The destination for the output decrypted file</param>
-        [NotNull]
-        public static async Task DecryptFileAsync([NotNull] Stream fileStream, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] FileInfo destination)
+        public static async Task DecryptFileAsync(Stream fileStream, byte[] encKey, byte[] iv, FileInfo destination)
         {
-            if (fileStream == null)
-                throw new ArgumentNullException(nameof(fileStream));
+            ArgumentNullException.ThrowIfNull(fileStream);
             if (!fileStream.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(fileStream));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (iv == null)
-                throw new ArgumentNullException(nameof(iv));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(iv);
+            ArgumentNullException.ThrowIfNull(destination);
             if (destination.Exists)
                 throw new ArgumentException($"File {destination.FullName} already exists", nameof(destination));
 
@@ -312,17 +276,13 @@
         /// <param name="source">The stream to encrypt</param>
         /// <param name="encKey">The encryption key</param>
         /// <param name="destination">The destination for the output decrypted stream</param>
-        [NotNull]
-        public static async Task DecryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] Stream destination)
+        public static async Task DecryptStreamAsync(Stream source, byte[] encKey, Stream destination)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            ArgumentNullException.ThrowIfNull(source);
             if (!source.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(source));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(destination);
             if (!destination.CanWrite)
                 throw new ArgumentException("Stream cannot be written", nameof(destination));
 
@@ -344,19 +304,14 @@
         /// <param name="encKey">The encryption key</param>
         /// <param name="iv">The initialization vector</param>
         /// <param name="destination">The destination for the output decrypted stream</param>
-        [NotNull]
-        public static async Task DecryptStreamAsync([NotNull] Stream source, [NotNull] byte[] encKey, [NotNull] byte[] iv, [NotNull] Stream destination)
+        public static async Task DecryptStreamAsync(Stream source, byte[] encKey, byte[] iv, Stream destination)
         {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
+            ArgumentNullException.ThrowIfNull(source);
             if (!source.CanRead)
                 throw new ArgumentException("Stream cannot be read", nameof(source));
-            if (encKey == null)
-                throw new ArgumentNullException(nameof(encKey));
-            if (iv == null)
-                throw new ArgumentNullException(nameof(iv));
-            if (destination == null)
-                throw new ArgumentNullException(nameof(destination));
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(iv);
+            ArgumentNullException.ThrowIfNull(destination);
             if (!destination.CanWrite)
                 throw new ArgumentException("Stream cannot be written", nameof(destination));
 

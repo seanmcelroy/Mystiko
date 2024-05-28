@@ -17,8 +17,6 @@ namespace Mystiko.Net
 
     using Cryptography;
 
-    using JetBrains.Annotations;
-
     using Org.BouncyCastle.Asn1.Sec;
     using Org.BouncyCastle.Crypto.Generators;
     using Org.BouncyCastle.Crypto.Parameters;
@@ -38,27 +36,21 @@ namespace Mystiko.Net
         /// <summary>
         /// Gets or sets the value of the public key X-value for this identity
         /// </summary>
-        [NotNull]
         public byte[] PublicKeyX { get; }
 
         /// <summary>
         /// Gets or sets the base-64 encoded value of the public key X-value for this identity
-        /// </summary>
-        [NotNull]
-        // ReSharper disable once AssignNullToNotNullAttribute
+        /// </summary>        
         public string PublicKeyXBase64 => Convert.ToBase64String(this.PublicKeyX);
 
         /// <summary>
         /// Gets or sets the value of the public key Y-value for this identity
         /// </summary>
-        [NotNull]
         public byte[] PublicKeyY { get; }
 
         /// <summary>
         /// Gets or sets the base-64 encoded value of the public key Y-value for this identity
         /// </summary>
-        [NotNull]
-        // ReSharper disable once AssignNullToNotNullAttribute
         public string PublicKeyYBase64 => Convert.ToBase64String(this.PublicKeyY);
 
         /// <summary>
@@ -67,7 +59,7 @@ namespace Mystiko.Net
         /// </summary>
         public ulong Nonce { get; }
 
-        public ServerNodeIdentity(ulong dateEpoch, [NotNull] byte[] publicKeyX, [NotNull] byte[] publicKeyY, ulong nonce)
+        public ServerNodeIdentity(ulong dateEpoch, byte[] publicKeyX, byte[] publicKeyY, ulong nonce)
         {
             if (dateEpoch < Convert.ToUInt64((new DateTime(2017, 05, 01, 0, 0, 0, DateTimeKind.Utc) - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds))
                 throw new ArgumentOutOfRangeException(nameof(dateEpoch), "Date epoch cannot be before 2017-05-01");
@@ -75,14 +67,12 @@ namespace Mystiko.Net
             if (dateEpoch > Convert.ToUInt64((DateTime.UtcNow.AddMinutes(10) - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds))
                 throw new ArgumentOutOfRangeException(nameof(dateEpoch), "Date epoch cannot be in the future");
 
-            if (publicKeyX == null)
-                throw new ArgumentNullException(nameof(publicKeyX));
+            ArgumentNullException.ThrowIfNull(publicKeyX);
 
             if (publicKeyX.Length != 32)
                 throw new ArgumentException("Public key X is not exactly 32 bytes long", nameof(publicKeyX));
 
-            if (publicKeyY == null)
-                throw new ArgumentNullException(nameof(publicKeyY));
+            ArgumentNullException.ThrowIfNull(publicKeyY);
 
             if (publicKeyY.Length != 32)
                 throw new ArgumentException("Public key Y is not exactly 32 bytes long", nameof(publicKeyY));
@@ -103,8 +93,6 @@ namespace Mystiko.Net
         /// <remarks>
         /// This key pair is an ecliptic-curve (secp256k1) key pair.
         /// </remarks>
-        // ReSharper disable once StyleCop.SA1650
-        [NotNull, Pure]
         public static Tuple<ServerNodeIdentity, byte[]> Generate(byte targetDifficulty)
         {
             if (targetDifficulty <= 0)
@@ -123,7 +111,6 @@ namespace Mystiko.Net
             var dateEpoch = Convert.ToUInt64((DateTime.UtcNow - new DateTime(1970, 01, 01, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds - insecureRandom.Next(0, 3600));
 
             // Elliptic Curve
-            // ReSharper disable once StringLiteralTypo
             var ec = SecNamedCurves.GetByName("secp256k1");
             Debug.Assert(ec != null, "ec != null");
             var domainParams = new ECDomainParameters(ec.Curve, ec.G, ec.N, ec.H);
@@ -181,7 +168,6 @@ namespace Mystiko.Net
         /// Returns the composite hash of the components of this identity
         /// </summary>
         /// <returns>The composite hash of the components of this identity</returns>
-        [NotNull, Pure]
         public string GetCompositeHash(byte targetDifficulty = 1)
         {
             var validatedIdentity = HashUtility.ValidateIdentity(this, targetDifficulty);

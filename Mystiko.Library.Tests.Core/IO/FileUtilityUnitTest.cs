@@ -24,8 +24,9 @@ namespace Mystiko.Library.Tests.IO
         [Fact]
         public async Task ChunkFileViaOutputDirectory_NullEncryptFile()
         {
-            // ReSharper disable once AssignNullToNotNullAttribute
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             await Assert.ThrowsAsync<ArgumentNullException>(async () => await FileUtility.ChunkFileViaOutputDirectory(null, new DirectoryInfo(@"C:\"), true, true, true));
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
 
         [Fact]
@@ -45,7 +46,7 @@ namespace Mystiko.Library.Tests.IO
         [Fact]
         public async Task ChunkFileViaOutputDirectory_NullOutputDirectory()
         {
-            var encryptFilePath = @"C:\Users\Smcelroy\Downloads\node-v6.4.0-x64.msi";
+            var encryptFilePath = @"C:\Users\Sean\Downloads\download.zip";
             if (!File.Exists(encryptFilePath))
             {
                 // XUNIT does not support - Assert.Inconclusive($"Unable to find test file {encryptFilePath}");
@@ -55,9 +56,10 @@ namespace Mystiko.Library.Tests.IO
             var encryptFile = new FileInfo(encryptFilePath);
             Assert.True(encryptFile.Exists);
 
-            // ReSharper disable once AssignNullToNotNullAttribute
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await FileUtility.ChunkFileViaOutputDirectory(encryptFile, null, true, true, true));
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
 
         [Fact(Skip = "Time consuming test")]
@@ -82,7 +84,7 @@ namespace Mystiko.Library.Tests.IO
         public async Task EncryptDecryptViaFileSystem()
         {
             // Encrypt
-            var encryptFilePath = @"C:\Users\Smcelroy\Downloads\node-v6.4.0-x64.msi";
+            var encryptFilePath = @"C:\Users\Sean\Downloads\download.zip";
             if (!File.Exists(encryptFilePath))
             {
                 // XUNIT does not support - Assert.Inconclusive($"Unable to find test file {encryptFilePath}");
@@ -118,7 +120,7 @@ namespace Mystiko.Library.Tests.IO
                 {
                     if (firstHash[i] != secondHash[i])
                     {
-                        Assert.True(false, $"SHA512 hash of input file ({firstHash}) did not match rebuilt file ({secondHash}) at position {i} of hash");
+                        Assert.Fail($"SHA512 hash of input file ({firstHash}) did not match rebuilt file ({secondHash}) at position {i} of hash");
                     }
                 }
             }

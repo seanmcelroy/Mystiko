@@ -8,43 +8,29 @@
     using System.Security.Cryptography;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
-
-    public class Block
+    public class Block(string? path, byte[] hash, byte[] last64Bytes)
     {
-        public Block([CanBeNull] string path, [NotNull] byte[] hash, [NotNull] byte[] last64Bytes)
-        {
-            this.Path = path;
-            this.FullHash = hash ?? throw new ArgumentNullException(nameof(hash));
-            this.Last64Bytes = last64Bytes ?? throw new ArgumentNullException(nameof(last64Bytes));
-        }
+        public string? Path { get; } = path;
 
-        [CanBeNull]
-        public string Path { get; }
-
-        [NotNull]
-        public byte[] FullHash { get; internal set; }
+        public byte[] FullHash { get; internal set; } = hash ?? throw new ArgumentNullException(nameof(hash));
 
         /// <summary>
         /// Gets the last 64 bytes of the encrypted block, used to obscure the unlock key
         /// </summary>
-        [NotNull]
-        public byte[] Last64Bytes { get; private set; }
+        public byte[] Last64Bytes { get; private set; } = last64Bytes ?? throw new ArgumentNullException(nameof(last64Bytes));
 
         /// <summary>
         /// The sequence ordering of the block
         /// </summary>
         public int Ordering { get; set; }
 
-        [NotNull]
         public static async Task<Block> NoSavedChunk(
-           [NotNull] HashAlgorithm hasher,
-           [NotNull] byte[] encryptedChunk,
-           [CanBeNull] string chunkFileName,
+           HashAlgorithm hasher,
+           byte[] encryptedChunk,
+           string? chunkFileName,
            uint ordering)
         {
-            if (encryptedChunk == null)
-                throw new ArgumentNullException(nameof(encryptedChunk));
+            ArgumentNullException.ThrowIfNull(encryptedChunk);
             if (encryptedChunk.Length == 0)
                 throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
 
@@ -65,15 +51,13 @@
             return block;
         }
 
-        [NotNull]
         public static async Task<Block> CreateViaTemp(
-            [NotNull] HashAlgorithm hasher,
-            [NotNull] byte[] encryptedChunk,
-            [CanBeNull] string chunkFileName,
+            HashAlgorithm hasher,
+            byte[] encryptedChunk,
+            string? chunkFileName,
             uint ordering)
         {
-            if (encryptedChunk == null)
-                throw new ArgumentNullException(nameof(encryptedChunk));
+            ArgumentNullException.ThrowIfNull(encryptedChunk, nameof(encryptedChunk));
             if (encryptedChunk.Length == 0)
                 throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
 
@@ -93,26 +77,23 @@
 
             using (var fs = new FileStream(block.Path, FileMode.Open, FileAccess.Write, FileShare.None))
             {
-                await fs.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
+                await fs.WriteAsync(encryptedChunk);
             }
 
             return block;
         }
 
-        [NotNull]
         public static async Task<Block> CreateViaOutputDirectory(
-            [NotNull] HashAlgorithm hasher,
-            [NotNull] byte[] encryptedChunk,
-            [NotNull] DirectoryInfo outputDirectory,
-            [NotNull] string chunkFileName,
+            HashAlgorithm hasher,
+            byte[] encryptedChunk,
+            DirectoryInfo outputDirectory,
+            string chunkFileName,
             bool overwrite,
             bool verbose = false,
             bool verify = false)
         {
-            if (hasher == null)
-                throw new ArgumentNullException(nameof(hasher));
-            if (encryptedChunk == null)
-                throw new ArgumentNullException(nameof(encryptedChunk));
+            ArgumentNullException.ThrowIfNull(hasher);
+            ArgumentNullException.ThrowIfNull(encryptedChunk);
             if (encryptedChunk.Length == 0)
                 throw new ArgumentException("Zero byte file", nameof(encryptedChunk));
 
@@ -151,7 +132,7 @@
             using (var fs = new FileStream(block.Path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
             using (var bs = new BufferedStream(fs))
             {
-                await bs.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
+                await bs.WriteAsync(encryptedChunk);
             }
 
             // Verify the file output hash
@@ -168,31 +149,23 @@
                     Debug.Assert(blockFileHash != null, "blockFileHash != null");
                     if (verbose)
                     {
-                        Console.WriteLine($"Hash for: {new FileInfo(block.Path).Name}: {FileUtility.ByteArrayToString(blockFileHash).Substring(0, 8)}");
+                        Console.WriteLine($"Hash for: {new FileInfo(block.Path).Name}: {FileUtility.ByteArrayToString(blockFileHash)[..8]}");
                     }
                 }
 
                 if (!encryptedChunkHash.SequenceEqual(blockFileHash))
                 {
-                    Console.WriteLine($"WARNING: Hash does not match for {new FileInfo(block.Path).Name}: {FileUtility.ByteArrayToString(encryptedChunkHash).Substring(0, 8)} vs {FileUtility.ByteArrayToString(blockFileHash).Substring(0, 8)}");
+                    Console.WriteLine($"WARNING: Hash does not match for {new FileInfo(block.Path).Name}: {FileUtility.ByteArrayToString(encryptedChunkHash)[..8]} vs {FileUtility.ByteArrayToString(blockFileHash)[..8]}");
                 }
             }
 
             return block;
         }
 
-        [NotNull, Pure]
-        public static byte[] CalculateUnlockXorKey([NotNull] byte[] encKey, [NotNull] IEnumerable<Block> allBlocks)
+        public static byte[] CalculateUnlockXorKey(byte[] encKey, IEnumerable<Block> allBlocks)
         {
-            if (encKey == null)
-            {
-                throw new ArgumentNullException(nameof(encKey));
-            }
-
-            if (allBlocks == null)
-            {
-                throw new ArgumentNullException(nameof(allBlocks));
-            }
+            ArgumentNullException.ThrowIfNull(encKey);
+            ArgumentNullException.ThrowIfNull(allBlocks);
 
             var result = allBlocks.Aggregate(
                 encKey,

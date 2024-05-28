@@ -4,20 +4,16 @@ namespace Mystiko.Database.Records
 {
     using System.Diagnostics;
 
-    using JetBrains.Annotations;
-
     using Mystiko.Net;
 
     public class NodeConfiguration
     {
-        [CanBeNull]
-        private ServerNodeIdentityAndKey _identity;
+        private ServerNodeIdentityAndKey? _identity;
 
         /// <summary>
         /// Gets or sets the identifying information about a node's identity, as determined by its identity keying material
         /// </summary>
-        [CanBeNull]
-        public ServerNodeIdentityAndKey Identity
+        public ServerNodeIdentityAndKey? Identity
         {
             get
             {
@@ -39,7 +35,7 @@ namespace Mystiko.Database.Records
         /// <summary>
         /// Gets or sets the resource records known to this node
         /// </summary>
-        public List<ResourceRecord> ResourceRecords { get; set; } = new List<ResourceRecord>();
+        public List<ResourceRecord> ResourceRecords { get; set; } = [];
 
         /// <summary>
         /// Gets or sets a value indicating whether the server channel will not broadcast its presence, but will listen for other nodes only

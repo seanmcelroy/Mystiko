@@ -29,7 +29,7 @@ namespace Mystiko.Library.Tests.Net
             var foundTask = NetUtility.FindPublicIPAddressAsync();
             if (!foundTask.Wait(10000))
             {
-                Assert.True(false, "Unable to find a public IP address within 10 seconds.  Is this testing device not able to access the Internet on HTTP/HTTPS ports?");
+                Assert.Fail("Unable to find a public IP address within 10 seconds.  Is this testing device not able to access the Internet on HTTP/HTTPS ports?");
             }
 
             Assert.NotNull(foundTask.Result);

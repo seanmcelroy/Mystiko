@@ -4,25 +4,20 @@ namespace Mystiko.Cryptography
 {
     using System.Security.Cryptography;
 
-    using JetBrains.Annotations;
-
-    [PublicAPI]
     public static class RandomUtility
     {
-        public static int GetNext([NotNull] this RandomNumberGenerator rng, int maxValue)
+        public static int GetNext(this RandomNumberGenerator rng, int maxValue)
         {
-            if (rng == null)
-                throw new ArgumentNullException(nameof(rng));
+            ArgumentNullException.ThrowIfNull(rng);
             if (maxValue < 1)
                 throw new ArgumentOutOfRangeException(nameof(maxValue), maxValue, "Value must be positive.");
 
             return GetNext(rng, 0, maxValue);
         }
 
-        public static int GetNext([NotNull] this RandomNumberGenerator rng, int minValue, int maxValue)
+        public static int GetNext(this RandomNumberGenerator rng, int minValue, int maxValue)
         {
-            if (rng == null)
-                throw new ArgumentNullException(nameof(rng));
+            ArgumentNullException.ThrowIfNull(rng);
             if (maxValue < 1)
                 throw new ArgumentOutOfRangeException(nameof(maxValue), maxValue, "Value must be positive.");
             if (minValue >= maxValue)

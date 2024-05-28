@@ -29,10 +29,10 @@ namespace Mystiko.Library.Tests.Cryptography
         public async Task EncryptDecryptViaFileSystem()
         {
             // Encrypt
-            var encryptFilePath = @"C:\Users\Smcelroy\Downloads\node-v6.4.0-x64.msi";
+            var encryptFilePath = @"C:\Users\Sean\Downloads\download.zip";
             if (!File.Exists(encryptFilePath))
             {
-                Assert.True(false, $"Unable to find test file {encryptFilePath}");
+                Assert.Fail($"Unable to find test file {encryptFilePath}");
             }
             
             var sourceFile = new FileInfo(encryptFilePath);
@@ -122,6 +122,7 @@ namespace Mystiko.Library.Tests.Cryptography
                 var serializedConfigurationRestored = System.Text.Encoding.UTF8.GetString(decryptedBytes).TrimEnd('\0');
                 Assert.Equal(serializedConfigurationOriginal, serializedConfigurationRestored);
                 var configurationRestored = JsonConvert.DeserializeObject<NodeConfiguration>(serializedConfigurationRestored);
+                Assert.NotNull(configurationRestored);
             }
         }
     }

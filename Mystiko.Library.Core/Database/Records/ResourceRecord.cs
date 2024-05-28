@@ -1,7 +1,5 @@
 ﻿namespace Mystiko.Database.Records
 {
-    using JetBrains.Annotations;
-
     /// <summary>
     /// A resource record is the key that allows a client to know:
     ///  1. It has all the parts of a given file
@@ -12,16 +10,16 @@
         /// <summary>
         /// Gets or sets the temporal file ID used to refer to an encrypted set of file blocks and an encrypted file manifest
         /// </summary>
-        public string TemporalFileID { get; [UsedImplicitly] set; }
+        public required string TemporalFileID { get; init; }
 
         /// <summary>
         /// Gets or sets the timestamp used to create the <see cref="TemporalFileID"/>
         /// </summary>
-        public ulong EntropyTimestamp { get; [UsedImplicitly] set; }
+        public required ulong EntropyTimestamp { get; init; }
 
         /// <summary>
         /// Gets or sets the list of block hashes, in an intentionally random order
         /// </summary>
-        public string[] BlockHashes { get; [UsedImplicitly] set; }
+        public required string[] BlockHashes { get; init; }
     }
 }

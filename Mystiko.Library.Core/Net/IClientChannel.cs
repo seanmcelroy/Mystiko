@@ -12,8 +12,6 @@ namespace Mystiko.Net
     using System;
     using System.Net;
 
-    using JetBrains.Annotations;
-
     using Messages;
 
     /// <summary>
@@ -24,18 +22,18 @@ namespace Mystiko.Net
         /// <summary>
         /// Gets the remote endpoint for this client channel
         /// </summary>
-        IPEndPoint RemoteEndpoint { get; }
+        IPEndPoint? RemoteEndpoint { get; }
 
         /// <summary>
         /// Registers a handler for the client channel
         /// </summary>
         /// <param name="messageHandler">An action that receives messages from the peer neighbor</param>
-        void RegisterHandler([NotNull] Action<IMessage> messageHandler);
+        void RegisterHandler(Action<IMessage> messageHandler);
 
         /// <summary>
         /// Sends a message to a client
         /// </summary>
         /// <param name="message">The message to send to the client</param>
-        void Send([NotNull] IMessage message);
+        void Send(IMessage message);
     }
 }

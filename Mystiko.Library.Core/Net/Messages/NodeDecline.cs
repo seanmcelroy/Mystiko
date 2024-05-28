@@ -120,27 +120,22 @@ namespace Mystiko.Net.Messages
         /// <inheritdoc />
         public byte[] ToMessage()
         {
-            using (var ms = new MemoryStream())
-            using (var bw = new BinaryWriter(ms))
-            {
-                bw.Write(new byte[] { 0x4D, 0x59, 0x53, 0x54, 0x49, 0x4B, 0x4F, 0x0A }); // Header
-                bw.Write(new byte[] { (byte)this.MessageType, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }); // Message type, length (1 more QWORDs)
-                bw.Write((byte)this.DeclineReason); // 1 byte
-                bw.Write((byte)this.Remediation); // 1 byte
-                bw.Write(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
-                bw.Write(new byte[] { 0x0C, 0xAB, 0x00, 0x5E, 0xFF, 0xFF, 0xFF, 0xFF }); // Caboose
-                // ReSharper disable once AssignNullToNotNullAttribute
-                return ms.ToArray();
-            }
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
+
+            bw.Write(new byte[] { 0x4D, 0x59, 0x53, 0x54, 0x49, 0x4B, 0x4F, 0x0A }); // Header
+            bw.Write(new byte[] { (byte)this.MessageType, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }); // Message type, length (1 more QWORDs)
+            bw.Write((byte)this.DeclineReason); // 1 byte
+            bw.Write((byte)this.Remediation); // 1 byte
+            bw.Write(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+            bw.Write(new byte[] { 0x0C, 0xAB, 0x00, 0x5E, 0xFF, 0xFF, 0xFF, 0xFF }); // Caboose
+            return ms.ToArray();
         }
 
         /// <inheritdoc />
         public void FromMessage(byte[] messageBytes)
         {
-            if (messageBytes == null)
-            {
-                throw new ArgumentNullException(nameof(messageBytes));
-            }
+            ArgumentNullException.ThrowIfNull(messageBytes);
 
             if (messageBytes.Length < 1)
             {
@@ -172,10 +167,7 @@ namespace Mystiko.Net.Messages
 
         public void FromPayload(byte[] payload)
         {
-            if (payload == null)
-            {
-                throw new ArgumentNullException(nameof(payload));
-            }
+            ArgumentNullException.ThrowIfNull(payload);
 
             if (payload.Length < 1)
             {
